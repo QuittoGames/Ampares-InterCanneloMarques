@@ -1,0 +1,10 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  "instructions": [
+    "/home/quitto/Projects/Java/interdiciplinar/.agents/AGENTS.md",
+    "/home/quitto/Projects/Java/interdiciplinar/.agents/RULES.md",
+    "/home/quitto/Projects/Java/interdiciplinar/.agents/TODO.md",
+    "/home/quitto/Projects/Java/interdiciplinar/.agents/VISUALSPEC.md"
+  ]
+}
