@@ -1,0 +1,1 @@
+"""ENERGY STAR collector package."""
