@@ -1,0 +1,21 @@
+2026-08-23 18:35:26,571 INFO  Starting collector
+2026-08-23 18:35:26,576 INFO  Socrata app token: absent (anonymous)
+2026-08-23 18:35:26,617 ERROR Could not connect to PostgreSQL: failed to resolve host 'db.ygqawufkifsrwsqbewoi.supabase.co': [Errno 11004] getaddrinfo failed
+2026-08-23 18:36:24,179 INFO  Starting collector
+2026-08-23 18:36:24,185 INFO  Socrata app token: absent (anonymous)
+2026-08-23 18:36:24,214 ERROR Could not connect to PostgreSQL: failed to resolve host 'db.ygqawufkifsrwsqbewoi.supabase.co': [Errno 11004] getaddrinfo failed
+2026-08-23 18:43:31,888 INFO  Starting collector
+2026-08-23 18:43:31,894 INFO  Socrata app token: absent (anonymous)
+2026-08-23 18:43:36,112 INFO  Starting collector
+2026-08-23 18:43:36,117 INFO  Socrata app token: absent (anonymous)
+2026-08-23 18:43:36,139 ERROR Could not connect to PostgreSQL: failed to resolve host 'db.ygqawufkifsrwsqbewoi.supabase.co': [Errno 11004] getaddrinfo failed
+2026-08-23 18:59:41,941 INFO  Starting collector
+2026-08-23 18:59:41,948 INFO  Socrata app token: absent (anonymous)
+2026-08-23 18:59:43,658 ERROR Could not connect to PostgreSQL: connection failed: connection to server at "52.67.188.92", port 5432 failed: FATAL:  (ENOTFOUND) tenant/user postgres.ygqawufkifsrwsqbewoi not found
+Multiple connection attempts failed. All failures were:
+- host: 'aws-1-sa-east-1.pooler.supabase.com', port: '5432', hostaddr: '54.232.77.43': connection failed: connection to server at "54.232.77.43", port 5432 failed: FATAL:  (ENOTFOUND) tenant/user postgres.ygqawufkifsrwsqbewoi not found
+- host: 'aws-1-sa-east-1.pooler.supabase.com', port: '5432', hostaddr: '18.228.163.245': connection failed: connection to server at "18.228.163.245", port 5432 failed: FATAL:  (ENOTFOUND) tenant/user postgres.ygqawufkifsrwsqbewoi not found
+- host: 'aws-1-sa-east-1.pooler.supabase.com', port: '5432', hostaddr: '52.67.188.92': connection failed: connection to server at "52.67.188.92", port 5432 failed: FATAL:  (ENOTFOUND) tenant/user postgres.ygqawufkifsrwsqbewoi not found
+2026-08-23 19:03:19,371 INFO  Starting collector
+2026-08-23 19:03:19,391 INFO  Socrata app token: absent (anonymous)
+2026-08-23 19:03:19,455 ERROR Could not connect to PostgreSQL: failed to resolve host 'db.ygqawufkifsrwsqbewoi.supabase.co': [Errno 11004] getaddrinfo failed
