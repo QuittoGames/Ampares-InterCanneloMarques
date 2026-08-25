@@ -1,21 +1,404 @@
-2026-08-23 18:35:26,571 INFO  Starting collector
-2026-08-23 18:35:26,576 INFO  Socrata app token: absent (anonymous)
-2026-08-23 18:35:26,617 ERROR Could not connect to PostgreSQL: failed to resolve host 'db.ygqawufkifsrwsqbewoi.supabase.co': [Errno 11004] getaddrinfo failed
-2026-08-23 18:36:24,179 INFO  Starting collector
-2026-08-23 18:36:24,185 INFO  Socrata app token: absent (anonymous)
-2026-08-23 18:36:24,214 ERROR Could not connect to PostgreSQL: failed to resolve host 'db.ygqawufkifsrwsqbewoi.supabase.co': [Errno 11004] getaddrinfo failed
-2026-08-23 18:43:31,888 INFO  Starting collector
-2026-08-23 18:43:31,894 INFO  Socrata app token: absent (anonymous)
-2026-08-23 18:43:36,112 INFO  Starting collector
-2026-08-23 18:43:36,117 INFO  Socrata app token: absent (anonymous)
-2026-08-23 18:43:36,139 ERROR Could not connect to PostgreSQL: failed to resolve host 'db.ygqawufkifsrwsqbewoi.supabase.co': [Errno 11004] getaddrinfo failed
-2026-08-23 18:59:41,941 INFO  Starting collector
-2026-08-23 18:59:41,948 INFO  Socrata app token: absent (anonymous)
-2026-08-23 18:59:43,658 ERROR Could not connect to PostgreSQL: connection failed: connection to server at "52.67.188.92", port 5432 failed: FATAL:  (ENOTFOUND) tenant/user postgres.ygqawufkifsrwsqbewoi not found
-Multiple connection attempts failed. All failures were:
-- host: 'aws-1-sa-east-1.pooler.supabase.com', port: '5432', hostaddr: '54.232.77.43': connection failed: connection to server at "54.232.77.43", port 5432 failed: FATAL:  (ENOTFOUND) tenant/user postgres.ygqawufkifsrwsqbewoi not found
-- host: 'aws-1-sa-east-1.pooler.supabase.com', port: '5432', hostaddr: '18.228.163.245': connection failed: connection to server at "18.228.163.245", port 5432 failed: FATAL:  (ENOTFOUND) tenant/user postgres.ygqawufkifsrwsqbewoi not found
-- host: 'aws-1-sa-east-1.pooler.supabase.com', port: '5432', hostaddr: '52.67.188.92': connection failed: connection to server at "52.67.188.92", port 5432 failed: FATAL:  (ENOTFOUND) tenant/user postgres.ygqawufkifsrwsqbewoi not found
-2026-08-23 19:03:19,371 INFO  Starting collector
-2026-08-23 19:03:19,391 INFO  Socrata app token: absent (anonymous)
-2026-08-23 19:03:19,455 ERROR Could not connect to PostgreSQL: failed to resolve host 'db.ygqawufkifsrwsqbewoi.supabase.co': [Errno 11004] getaddrinfo failed
+2026-08-24 18:45:34,252 ERROR Nada a fazer: informe --category <nome|4x4> ou --all
+2026-08-24 18:46:40,565 WARNING Conectando como superusuario 'postgres'. Recomendado: role dedicado com privilegio minimo (ver docs/TODO.md, secao Human).
+2026-08-24 18:46:40,565 INFO  Socrata: anonimo | rate limit: 4.0 req/s
+2026-08-24 18:47:10,810 ERROR Erro inesperado: couldn't get a connection after 30.00 sec
+Traceback (most recent call last):
+  File "D:\Projects\Java\Ampares-InterCanneloMarques\energy_collector\data_collector.py", line 213, in main
+    ensure_table(pool)
+    ~~~~~~~~~~~~^^^^^^
+  File "D:\Projects\Java\Ampares-InterCanneloMarques\energy_collector\collector\database.py", line 104, in ensure_table
+    with pool.connection() as conn, conn.transaction():
+         ~~~~~~~~~~~~~~~^^
+  File "C:\Users\Quitto\AppData\Local\Programs\Python\Python314\Lib\contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "C:\Users\Quitto\AppData\Local\Programs\Python\Python314\Lib\site-packages\psycopg_pool\pool.py", line 184, in connection
+    conn = self.getconn(timeout=timeout)
+  File "C:\Users\Quitto\AppData\Local\Programs\Python\Python314\Lib\site-packages\psycopg_pool\pool.py", line 218, in getconn
+    raise PoolTimeout(
+        f"couldn't get a connection after {timeout:.2f} sec"
+    ) from None
+psycopg_pool.PoolTimeout: couldn't get a connection after 30.00 sec
+2026-08-24 18:49:34,825 WARNING Conectando como superusuario 'postgres'. Recomendado: role dedicado com privilegio minimo (ver docs/TODO.md, secao Human).
+2026-08-24 18:49:34,826 INFO  Socrata: anonimo | rate limit: 4.0 req/s
+2026-08-24 18:50:05,076 ERROR Erro inesperado: couldn't get a connection after 30.00 sec
+Traceback (most recent call last):
+  File "D:\Projects\Java\Ampares-InterCanneloMarques\energy_collector\data_collector.py", line 213, in main
+    ensure_table(pool)
+    ~~~~~~~~~~~~^^^^^^
+  File "D:\Projects\Java\Ampares-InterCanneloMarques\energy_collector\collector\database.py", line 104, in ensure_table
+    with pool.connection() as conn, conn.transaction():
+         ~~~~~~~~~~~~~~~^^
+  File "C:\Users\Quitto\AppData\Local\Programs\Python\Python314\Lib\contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "C:\Users\Quitto\AppData\Local\Programs\Python\Python314\Lib\site-packages\psycopg_pool\pool.py", line 184, in connection
+    conn = self.getconn(timeout=timeout)
+  File "C:\Users\Quitto\AppData\Local\Programs\Python\Python314\Lib\site-packages\psycopg_pool\pool.py", line 218, in getconn
+    raise PoolTimeout(
+        f"couldn't get a connection after {timeout:.2f} sec"
+    ) from None
+psycopg_pool.PoolTimeout: couldn't get a connection after 30.00 sec
+2026-08-24 19:18:19,129 WARNING Conectando como superusuario 'postgres'. Recomendado: role dedicado com privilegio minimo (ver docs/TODO.md, secao Human).
+2026-08-24 19:18:19,134 INFO  Socrata: anonimo | rate limit: 4.0 req/s
+2026-08-24 19:18:39,215 WARNING Interrompido pelo usuario — use --resume para continuar
+2026-08-24 19:21:06,040 WARNING Conectando como superusuario 'postgres'. Recomendado: role dedicado com privilegio minimo (ver docs/TODO.md, secao Human).
+2026-08-24 19:21:06,393 INFO  Socrata: anonimo | rate limit: 0.2 req/s
+2026-08-24 19:21:36,689 ERROR Erro inesperado: couldn't get a connection after 30.00 sec
+Traceback (most recent call last):
+  File "D:\Projects\Java\Ampares-InterCanneloMarques\energy_collector\data_collector.py", line 213, in main
+    ensure_table(pool)
+    ~~~~~~~~~~~~^^^^^^
+  File "D:\Projects\Java\Ampares-InterCanneloMarques\energy_collector\collector\database.py", line 103, in ensure_table
+    with pool.connection() as conn, conn.transaction():
+         ~~~~~~~~~~~~~~~^^
+  File "C:\Users\Quitto\AppData\Local\Programs\Python\Python314\Lib\contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "C:\Users\Quitto\AppData\Local\Programs\Python\Python314\Lib\site-packages\psycopg_pool\pool.py", line 184, in connection
+    conn = self.getconn(timeout=timeout)
+  File "C:\Users\Quitto\AppData\Local\Programs\Python\Python314\Lib\site-packages\psycopg_pool\pool.py", line 218, in getconn
+    raise PoolTimeout(
+        f"couldn't get a connection after {timeout:.2f} sec"
+    ) from None
+psycopg_pool.PoolTimeout: couldn't get a connection after 30.00 sec
+2026-08-24 19:30:37,605 INFO  Socrata: anonimo | rate limit: 4.0 req/s
+2026-08-24 19:31:26,190 INFO  Socrata: anonimo | rate limit: 4.0 req/s
+2026-08-24 19:35:47,268 INFO  ==============================================================================
+2026-08-24 19:35:47,268 INFO  categoria                    dataset     recebidos inseridos  atualiz. descartados  status
+2026-08-24 19:35:47,269 INFO  boilers                      6rww-hpns         647         0       647           0  ok
+2026-08-24 19:35:47,269 INFO  ceiling_fans                 2te3-nmxp        1384         0      1384           0  ok
+2026-08-24 19:35:47,269 INFO  clothes_washers              bghd-e2wd         401         0       401           0  ok
+2026-08-24 19:35:47,269 INFO  commercial_boilers           3393-mxju         386         0       386           0  ok
+2026-08-24 19:35:47,269 INFO  commercial_clothes_washers   9g6r-cpdt         124         0       124           0  ok
+2026-08-24 19:35:47,270 INFO  commercial_coffee_brewers    6xa2-5c2t          19         0        19           0  ok
+2026-08-24 19:35:47,270 INFO  commercial_dishwashers       pk8q-dim8         418         0       418           0  ok
+2026-08-24 19:35:47,270 INFO  commercial_electric_cooktops nt9t-yxu3          33         0        33           0  ok
+2026-08-24 19:35:47,270 INFO  commercial_fryers            edi8-b5vk         175         0       175           0  ok
+2026-08-24 19:35:47,270 INFO  commercial_griddles          nw5s-r5ca          47         0        47           0  ok
+2026-08-24 19:35:47,271 INFO  commercial_hot_food_holding_ wyw6-sr4d         235         0       235           0  ok
+2026-08-24 19:35:47,271 INFO  commercial_ice_machines      nak5-fsjf         593         0       593           0  ok
+2026-08-24 19:35:47,271 INFO  commercial_ovens             c8av-ccf7         370         0       370           0  ok
+2026-08-24 19:35:47,271 INFO  commercial_refrigerators_and wati-2tfp        1937         0      1937           0  ok
+2026-08-24 19:35:47,271 INFO  commercial_steam_cookers     vtsv-aq9u         200         0       200           0  ok
+2026-08-24 19:35:47,272 INFO  commercial_water_heaters     xmq6-bm79         733         0       733           0  ok
+2026-08-24 19:35:47,272 INFO  computers                    rxdj-2c88        1788         0      1788           0  ok
+2026-08-24 19:35:47,272 INFO  data_center_storage_block_i_ 3uec-2gqf          81         0        81           0  ok
+2026-08-24 19:35:47,272 INFO  data_center_storage_file_i_o put7-uu67          35         0        35           0  ok
+2026-08-24 19:35:47,272 INFO  dehumidifiers                mgiu-hu4z         550         0       550           0  ok
+2026-08-24 19:35:47,273 INFO  displays                     qbg3-d468        2847         0      2847           0  ok
+2026-08-24 19:35:47,273 INFO  electric_vehicle_supply_equi 5jwe-c8xm         468         0       468           0  ok
+2026-08-24 19:35:47,273 INFO  electric_vehicle_supply_equi t3a6-mkxz         311         0       311           0  ok
+2026-08-24 19:35:47,273 INFO  enterprise_servers           qifb-fcj2         490         0       490           0  ok
+2026-08-24 19:35:47,273 INFO  furnaces                     i97v-e8au        2796         0      2796           0  ok
+2026-08-24 19:35:47,273 INFO  geothermal_heat_pumps        acvd-5wvz        4978         0      4978           0  ok
+2026-08-24 19:35:47,274 INFO  heat_pumps                   83eb-xbyy      281828    271820     10008           0  ok
+2026-08-24 19:35:47,274 INFO  imaging_equipment            t2v6-g4nf        2747         0      2747           0  ok
+2026-08-24 19:35:47,274 INFO  insulation                   kphf-22jd          36         0         0          36  ok
+2026-08-24 19:35:47,274 INFO  laboratory_grade_refrigerato g242-ysjw        1089         0      1089           0  ok
+2026-08-24 19:35:47,274 INFO  large_network_equipment      n8cx-m62r          96         0        96           0  ok
+2026-08-24 19:35:47,275 INFO  light_commercial_hvac        e4mh-a2u3       11994      4994      7000           0  ok
+2026-08-24 19:35:47,275 INFO  light_fixtures_downlights    ej6d-wb4c        4599         0      4599           0  ok
+2026-08-24 19:35:47,275 INFO  medical_imaging_equipment    wjtt-3zwd           1         0         1           0  ok
+2026-08-24 19:35:47,275 INFO  pool_pumps                   m8cf-pkii         423         0       423           0  ok
+2026-08-24 19:35:47,275 INFO  products_upc_codes           8edu-y555       37997     23557     14440           0  ok
+2026-08-24 19:35:47,276 INFO  refrigerators                p5st-her9        4760       918      3842           0  ok
+2026-08-24 19:35:47,276 INFO  residential_clothes_dryers   t9u7-4d2j         663         0       663           0  ok
+2026-08-24 19:35:47,276 INFO  residential_dishwashers      q8py-6w3f         753         0       753           0  ok
+2026-08-24 19:35:47,276 INFO  residential_electric_cooking m6gi-ng33         256         0       256           0  ok
+2026-08-24 19:35:47,276 INFO  residential_freezers         8t9c-g3tn         665         0       665           0  ok
+2026-08-24 19:35:47,277 INFO  room_air_cleaners_v3_0       gaa3-swy6         236         0       236           0  ok
+2026-08-24 19:35:47,277 INFO  room_air_conditioners        5xn2-dv4h         463         0       463           0  ok
+2026-08-24 19:35:47,277 INFO  smart_thermostats            7p2p-wkbf         116         0       116           0  ok
+2026-08-24 19:35:47,277 INFO  storm_windows                qaxz-ikcb          30         0        30           0  ok
+2026-08-24 19:35:47,277 INFO  telephones                   bpzy-9tg8         290         0       290           0  ok
+2026-08-24 19:35:47,277 INFO  televisions                  pd96-rr3d         180         0       180           0  ok
+2026-08-24 19:35:47,278 INFO  uninterruptible_power_suppli ifxy-2uty         923       923         0           0  ok
+2026-08-24 19:35:47,278 INFO  vending_machines             j624-u8ux          69        69         0           0  ok
+2026-08-24 19:35:47,278 INFO  ventilating_fans             8dv7-nngq        1099      1099         0           0  ok
+2026-08-24 19:35:47,278 INFO  water_coolers                qsc8-7f7k         182       182         0           0  ok
+2026-08-24 19:35:47,278 INFO  water_heaters                pbpq-swnu        1257      1257         0           0  ok
+2026-08-24 19:35:47,279 INFO  ------------------------------------------------------------------------------
+2026-08-24 19:35:47,279 INFO  TOTAL: recebidos=374798 inseridos=304819 atualizados=69943 descartados=36 | 260.9s
+2026-08-24 19:38:43,434 INFO  Socrata: anonimo | rate limit: 4.0 req/s
+2026-08-24 19:43:15,425 INFO  ==============================================================================
+2026-08-24 19:43:15,425 INFO  categoria                    dataset     recebidos inseridos  atualiz. descartados  status
+2026-08-24 19:43:15,425 INFO  boilers                      6rww-hpns         647         0       647           0  ok
+2026-08-24 19:43:15,425 INFO  ceiling_fans                 2te3-nmxp        1384         0      1384           0  ok
+2026-08-24 19:43:15,425 INFO  clothes_washers              bghd-e2wd         401         0       401           0  ok
+2026-08-24 19:43:15,425 INFO  commercial_boilers           3393-mxju         386         0       386           0  ok
+2026-08-24 19:43:15,426 INFO  commercial_clothes_washers   9g6r-cpdt         124         0       124           0  ok
+2026-08-24 19:43:15,426 INFO  commercial_coffee_brewers    6xa2-5c2t          19         0        19           0  ok
+2026-08-24 19:43:15,426 INFO  commercial_dishwashers       pk8q-dim8         418         0       418           0  ok
+2026-08-24 19:43:15,426 INFO  commercial_electric_cooktops nt9t-yxu3          33         0        33           0  ok
+2026-08-24 19:43:15,426 INFO  commercial_fryers            edi8-b5vk         175         0       175           0  ok
+2026-08-24 19:43:15,426 INFO  commercial_griddles          nw5s-r5ca          47         0        47           0  ok
+2026-08-24 19:43:15,426 INFO  commercial_hot_food_holding_ wyw6-sr4d         235         0       235           0  ok
+2026-08-24 19:43:15,426 INFO  commercial_ice_machines      nak5-fsjf         593         0       593           0  ok
+2026-08-24 19:43:15,427 INFO  commercial_ovens             c8av-ccf7         370         0       370           0  ok
+2026-08-24 19:43:15,427 INFO  commercial_refrigerators_and wati-2tfp        1937         0      1937           0  ok
+2026-08-24 19:43:15,427 INFO  commercial_steam_cookers     vtsv-aq9u         200         0       200           0  ok
+2026-08-24 19:43:15,427 INFO  commercial_water_heaters     xmq6-bm79         733         0       733           0  ok
+2026-08-24 19:43:15,427 INFO  computers                    rxdj-2c88        1788         0      1788           0  ok
+2026-08-24 19:43:15,427 INFO  data_center_storage_block_i_ 3uec-2gqf          81         0        81           0  ok
+2026-08-24 19:43:15,427 INFO  data_center_storage_file_i_o put7-uu67          35         0        35           0  ok
+2026-08-24 19:43:15,427 INFO  dehumidifiers                mgiu-hu4z         550         0       550           0  ok
+2026-08-24 19:43:15,427 INFO  displays                     qbg3-d468        2847         0      2847           0  ok
+2026-08-24 19:43:15,427 INFO  electric_vehicle_supply_equi 5jwe-c8xm         468         0       468           0  ok
+2026-08-24 19:43:15,428 INFO  electric_vehicle_supply_equi t3a6-mkxz         311         0       311           0  ok
+2026-08-24 19:43:15,428 INFO  enterprise_servers           qifb-fcj2         490         0       490           0  ok
+2026-08-24 19:43:15,428 INFO  furnaces                     i97v-e8au        2796         0      2796           0  ok
+2026-08-24 19:43:15,428 INFO  geothermal_heat_pumps        acvd-5wvz        4978         0      4978           0  ok
+2026-08-24 19:43:15,428 INFO  heat_pumps                   83eb-xbyy      281828         0    281828           0  ok
+2026-08-24 19:43:15,428 INFO  imaging_equipment            t2v6-g4nf        2747         0      2747           0  ok
+2026-08-24 19:43:15,428 INFO  insulation                   kphf-22jd          36         0         0          36  ok
+2026-08-24 19:43:15,428 INFO  laboratory_grade_refrigerato g242-ysjw        1089         0      1089           0  ok
+2026-08-24 19:43:15,428 INFO  large_network_equipment      n8cx-m62r          96         0        96           0  ok
+2026-08-24 19:43:15,429 INFO  light_commercial_hvac        e4mh-a2u3       11994         0     11994           0  ok
+2026-08-24 19:43:15,429 INFO  light_fixtures_downlights    ej6d-wb4c        4599         0      4599           0  ok
+2026-08-24 19:43:15,429 INFO  medical_imaging_equipment    wjtt-3zwd           1         0         1           0  ok
+2026-08-24 19:43:15,429 INFO  pool_pumps                   m8cf-pkii         423         0       423           0  ok
+2026-08-24 19:43:15,429 INFO  products_upc_codes           8edu-y555       37997     23549     14448           0  ok
+2026-08-24 19:43:15,429 INFO  refrigerators                p5st-her9        4760         0      4760           0  ok
+2026-08-24 19:43:15,429 INFO  residential_clothes_dryers   t9u7-4d2j         663         0       663           0  ok
+2026-08-24 19:43:15,429 INFO  residential_dishwashers      q8py-6w3f         753         0       753           0  ok
+2026-08-24 19:43:15,429 INFO  residential_electric_cooking m6gi-ng33         256         0       256           0  ok
+2026-08-24 19:43:15,429 INFO  residential_freezers         8t9c-g3tn         665         0       665           0  ok
+2026-08-24 19:43:15,430 INFO  room_air_cleaners_v3_0       gaa3-swy6         236         0       236           0  ok
+2026-08-24 19:43:15,430 INFO  room_air_conditioners        5xn2-dv4h         463         0       463           0  ok
+2026-08-24 19:43:15,430 INFO  smart_thermostats            7p2p-wkbf         116         0       116           0  ok
+2026-08-24 19:43:15,430 INFO  storm_windows                qaxz-ikcb          30         0        30           0  ok
+2026-08-24 19:43:15,430 INFO  telephones                   bpzy-9tg8         290         0       290           0  ok
+2026-08-24 19:43:15,430 INFO  televisions                  pd96-rr3d         180         0       180           0  ok
+2026-08-24 19:43:15,430 INFO  uninterruptible_power_suppli ifxy-2uty         923         0       923           0  ok
+2026-08-24 19:43:15,430 INFO  vending_machines             j624-u8ux          69         0        69           0  ok
+2026-08-24 19:43:15,430 INFO  ventilating_fans             8dv7-nngq        1099         0      1099           0  ok
+2026-08-24 19:43:15,431 INFO  water_coolers                qsc8-7f7k         182         0       182           0  ok
+2026-08-24 19:43:15,431 INFO  water_heaters                pbpq-swnu        1257         0      1257           0  ok
+2026-08-24 19:43:15,431 INFO  ------------------------------------------------------------------------------
+2026-08-24 19:43:15,431 INFO  TOTAL: recebidos=374798 inseridos=23549 atualizados=351213 descartados=36 | 271.8s
+2026-08-24 19:54:17,340 INFO  Socrata: anonimo | rate limit: 4.0 req/s
+2026-08-24 19:59:05,727 INFO  ==============================================================================
+2026-08-24 19:59:05,728 INFO  categoria                    dataset     recebidos inseridos  atualiz. descartados  status
+2026-08-24 19:59:05,728 INFO  boilers                      6rww-hpns         647         0       647           0  ok
+2026-08-24 19:59:05,728 INFO  ceiling_fans                 2te3-nmxp        1384         0      1384           0  ok
+2026-08-24 19:59:05,728 INFO  clothes_washers              bghd-e2wd         401         0       401           0  ok
+2026-08-24 19:59:05,729 INFO  commercial_boilers           3393-mxju         386         0       386           0  ok
+2026-08-24 19:59:05,729 INFO  commercial_clothes_washers   9g6r-cpdt         124         0       124           0  ok
+2026-08-24 19:59:05,729 INFO  commercial_coffee_brewers    6xa2-5c2t          19         0        19           0  ok
+2026-08-24 19:59:05,729 INFO  commercial_dishwashers       pk8q-dim8         418         0       418           0  ok
+2026-08-24 19:59:05,730 INFO  commercial_electric_cooktops nt9t-yxu3          33         0        33           0  ok
+2026-08-24 19:59:05,730 INFO  commercial_fryers            edi8-b5vk         175         0       175           0  ok
+2026-08-24 19:59:05,730 INFO  commercial_griddles          nw5s-r5ca          47         0        47           0  ok
+2026-08-24 19:59:05,730 INFO  commercial_hot_food_holding_ wyw6-sr4d         235         0       235           0  ok
+2026-08-24 19:59:05,730 INFO  commercial_ice_machines      nak5-fsjf         593         0       593           0  ok
+2026-08-24 19:59:05,731 INFO  commercial_ovens             c8av-ccf7         370         0       370           0  ok
+2026-08-24 19:59:05,731 INFO  commercial_refrigerators_and wati-2tfp        1937         0      1937           0  ok
+2026-08-24 19:59:05,731 INFO  commercial_steam_cookers     vtsv-aq9u         200         0       200           0  ok
+2026-08-24 19:59:05,731 INFO  commercial_water_heaters     xmq6-bm79         733         0       733           0  ok
+2026-08-24 19:59:05,731 INFO  computers                    rxdj-2c88        1788         0      1788           0  ok
+2026-08-24 19:59:05,732 INFO  data_center_storage_block_i_ 3uec-2gqf          81         0        81           0  ok
+2026-08-24 19:59:05,732 INFO  data_center_storage_file_i_o put7-uu67          35         0        35           0  ok
+2026-08-24 19:59:05,732 INFO  dehumidifiers                mgiu-hu4z         550         0       550           0  ok
+2026-08-24 19:59:05,732 INFO  displays                     qbg3-d468        2847         0      2847           0  ok
+2026-08-24 19:59:05,733 INFO  electric_vehicle_supply_equi 5jwe-c8xm         468         0       468           0  ok
+2026-08-24 19:59:05,733 INFO  electric_vehicle_supply_equi t3a6-mkxz         311         0       311           0  ok
+2026-08-24 19:59:05,733 INFO  enterprise_servers           qifb-fcj2         490         0       490           0  ok
+2026-08-24 19:59:05,733 INFO  furnaces                     i97v-e8au        2796         0      2796           0  ok
+2026-08-24 19:59:05,733 INFO  geothermal_heat_pumps        acvd-5wvz        4978         0      4978           0  ok
+2026-08-24 19:59:05,734 INFO  heat_pumps                   83eb-xbyy      281828         0    281828           0  ok
+2026-08-24 19:59:05,734 INFO  imaging_equipment            t2v6-g4nf        2747         0      2747           0  ok
+2026-08-24 19:59:05,734 INFO  insulation                   kphf-22jd          36         0         0          36  ok
+2026-08-24 19:59:05,734 INFO  laboratory_grade_refrigerato g242-ysjw        1089         0      1089           0  ok
+2026-08-24 19:59:05,734 INFO  large_network_equipment      n8cx-m62r          96         0        96           0  ok
+2026-08-24 19:59:05,735 INFO  light_commercial_hvac        e4mh-a2u3       11994         0     11994           0  ok
+2026-08-24 19:59:05,735 INFO  light_fixtures_downlights    ej6d-wb4c        4599         0      4599           0  ok
+2026-08-24 19:59:05,735 INFO  medical_imaging_equipment    wjtt-3zwd           1         0         1           0  ok
+2026-08-24 19:59:05,735 INFO  pool_pumps                   m8cf-pkii         423         0       423           0  ok
+2026-08-24 19:59:05,736 INFO  products_upc_codes           8edu-y555       37997     23549     14448           0  ok
+2026-08-24 19:59:05,736 INFO  refrigerators                p5st-her9        4760         0      4760           0  ok
+2026-08-24 19:59:05,736 INFO  residential_clothes_dryers   t9u7-4d2j         663         0       663           0  ok
+2026-08-24 19:59:05,736 INFO  residential_dishwashers      q8py-6w3f         753         0       753           0  ok
+2026-08-24 19:59:05,736 INFO  residential_electric_cooking m6gi-ng33         256         0       256           0  ok
+2026-08-24 19:59:05,737 INFO  residential_freezers         8t9c-g3tn         665         0       665           0  ok
+2026-08-24 19:59:05,737 INFO  room_air_cleaners_v3_0       gaa3-swy6         236         0       236           0  ok
+2026-08-24 19:59:05,737 INFO  room_air_conditioners        5xn2-dv4h         463         0       463           0  ok
+2026-08-24 19:59:05,737 INFO  smart_thermostats            7p2p-wkbf         116         0       116           0  ok
+2026-08-24 19:59:05,737 INFO  storm_windows                qaxz-ikcb          30         0        30           0  ok
+2026-08-24 19:59:05,738 INFO  telephones                   bpzy-9tg8         290         0       290           0  ok
+2026-08-24 19:59:05,738 INFO  televisions                  pd96-rr3d         180         0       180           0  ok
+2026-08-24 19:59:05,738 INFO  uninterruptible_power_suppli ifxy-2uty         923         0       923           0  ok
+2026-08-24 19:59:05,738 INFO  vending_machines             j624-u8ux          69         0        69           0  ok
+2026-08-24 19:59:05,739 INFO  ventilating_fans             8dv7-nngq        1099         0      1099           0  ok
+2026-08-24 19:59:05,739 INFO  water_coolers                qsc8-7f7k         182         0       182           0  ok
+2026-08-24 19:59:05,739 INFO  water_heaters                pbpq-swnu        1257         0      1257           0  ok
+2026-08-24 19:59:05,740 INFO  ------------------------------------------------------------------------------
+2026-08-24 19:59:05,740 INFO  TOTAL: recebidos=374798 inseridos=23549 atualizados=351213 descartados=36 | 288.0s
+2026-08-24 20:18:42,046 INFO  Socrata: anonimo | rate limit: 4.0 req/s
+2026-08-24 20:22:58,529 INFO  ==============================================================================
+2026-08-24 20:22:58,529 INFO  categoria                    dataset     recebidos inseridos  atualiz. descartados  status
+2026-08-24 20:22:58,529 INFO  boilers                      6rww-hpns         647         0       647           0  ok
+2026-08-24 20:22:58,530 INFO  ceiling_fans                 2te3-nmxp        1384         0      1384           0  ok
+2026-08-24 20:22:58,530 INFO  clothes_washers              bghd-e2wd         401         0       401           0  ok
+2026-08-24 20:22:58,530 INFO  commercial_boilers           3393-mxju         386         0       386           0  ok
+2026-08-24 20:22:58,530 INFO  commercial_clothes_washers   9g6r-cpdt         124         0       124           0  ok
+2026-08-24 20:22:58,531 INFO  commercial_coffee_brewers    6xa2-5c2t          19         0        19           0  ok
+2026-08-24 20:22:58,531 INFO  commercial_dishwashers       pk8q-dim8         418         0       418           0  ok
+2026-08-24 20:22:58,531 INFO  commercial_electric_cooktops nt9t-yxu3          33         0        33           0  ok
+2026-08-24 20:22:58,531 INFO  commercial_fryers            edi8-b5vk         175         0       175           0  ok
+2026-08-24 20:22:58,531 INFO  commercial_griddles          nw5s-r5ca          47         0        47           0  ok
+2026-08-24 20:22:58,532 INFO  commercial_hot_food_holding_ wyw6-sr4d         235         0       235           0  ok
+2026-08-24 20:22:58,532 INFO  commercial_ice_machines      nak5-fsjf         593         0       593           0  ok
+2026-08-24 20:22:58,532 INFO  commercial_ovens             c8av-ccf7         370         0       370           0  ok
+2026-08-24 20:22:58,532 INFO  commercial_refrigerators_and wati-2tfp        1937         0      1937           0  ok
+2026-08-24 20:22:58,532 INFO  commercial_steam_cookers     vtsv-aq9u         200         0       200           0  ok
+2026-08-24 20:22:58,533 INFO  commercial_water_heaters     xmq6-bm79         733         0       733           0  ok
+2026-08-24 20:22:58,533 INFO  computers                    rxdj-2c88        1788         0      1788           0  ok
+2026-08-24 20:22:58,533 INFO  data_center_storage_block_i_ 3uec-2gqf          81         0        81           0  ok
+2026-08-24 20:22:58,533 INFO  data_center_storage_file_i_o put7-uu67          35         0        35           0  ok
+2026-08-24 20:22:58,533 INFO  dehumidifiers                mgiu-hu4z         550         0       550           0  ok
+2026-08-24 20:22:58,534 INFO  displays                     qbg3-d468        2847         0      2847           0  ok
+2026-08-24 20:22:58,534 INFO  electric_vehicle_supply_equi 5jwe-c8xm         468         0       468           0  ok
+2026-08-24 20:22:58,534 INFO  electric_vehicle_supply_equi t3a6-mkxz         311         0       311           0  ok
+2026-08-24 20:22:58,534 INFO  enterprise_servers           qifb-fcj2         490         0       490           0  ok
+2026-08-24 20:22:58,534 INFO  furnaces                     i97v-e8au        2796         0      2796           0  ok
+2026-08-24 20:22:58,535 INFO  geothermal_heat_pumps        acvd-5wvz        4978         0      4978           0  ok
+2026-08-24 20:22:58,535 INFO  heat_pumps                   83eb-xbyy      281828         0    281828           0  ok
+2026-08-24 20:22:58,535 INFO  imaging_equipment            t2v6-g4nf        2747         0      2747           0  ok
+2026-08-24 20:22:58,535 INFO  insulation                   kphf-22jd          36         0         0          36  ok
+2026-08-24 20:22:58,535 INFO  laboratory_grade_refrigerato g242-ysjw        1089         0      1089           0  ok
+2026-08-24 20:22:58,536 INFO  large_network_equipment      n8cx-m62r          96         0        96           0  ok
+2026-08-24 20:22:58,536 INFO  light_commercial_hvac        e4mh-a2u3       11994         0     11994           0  ok
+2026-08-24 20:22:58,536 INFO  light_fixtures_downlights    ej6d-wb4c        4599         0      4599           0  ok
+2026-08-24 20:22:58,536 INFO  medical_imaging_equipment    wjtt-3zwd           1         0         1           0  ok
+2026-08-24 20:22:58,536 INFO  pool_pumps                   m8cf-pkii         423         0       423           0  ok
+2026-08-24 20:22:58,537 INFO  products_upc_codes           8edu-y555       37997     23549     14448           0  ok
+2026-08-24 20:22:58,537 INFO  refrigerators                p5st-her9        4760         0      4760           0  ok
+2026-08-24 20:22:58,537 INFO  residential_clothes_dryers   t9u7-4d2j         663         0       663           0  ok
+2026-08-24 20:22:58,537 INFO  residential_dishwashers      q8py-6w3f         753         0       753           0  ok
+2026-08-24 20:22:58,537 INFO  residential_electric_cooking m6gi-ng33         256         0       256           0  ok
+2026-08-24 20:22:58,538 INFO  residential_freezers         8t9c-g3tn         665         0       665           0  ok
+2026-08-24 20:22:58,538 INFO  room_air_cleaners_v3_0       gaa3-swy6         236         0       236           0  ok
+2026-08-24 20:22:58,538 INFO  room_air_conditioners        5xn2-dv4h         463         0       463           0  ok
+2026-08-24 20:22:58,538 INFO  smart_thermostats            7p2p-wkbf         116         0       116           0  ok
+2026-08-24 20:22:58,538 INFO  storm_windows                qaxz-ikcb          30         0        30           0  ok
+2026-08-24 20:22:58,539 INFO  telephones                   bpzy-9tg8         290         0       290           0  ok
+2026-08-24 20:22:58,539 INFO  televisions                  pd96-rr3d         180         0       180           0  ok
+2026-08-24 20:22:58,539 INFO  uninterruptible_power_suppli ifxy-2uty         923         0       923           0  ok
+2026-08-24 20:22:58,539 INFO  vending_machines             j624-u8ux          69         0        69           0  ok
+2026-08-24 20:22:58,539 INFO  ventilating_fans             8dv7-nngq        1099         0      1099           0  ok
+2026-08-24 20:22:58,540 INFO  water_coolers                qsc8-7f7k         182         0       182           0  ok
+2026-08-24 20:22:58,540 INFO  water_heaters                pbpq-swnu        1257         0      1257           0  ok
+2026-08-24 20:22:58,540 INFO  ------------------------------------------------------------------------------
+2026-08-24 20:22:58,540 INFO  TOTAL: recebidos=374798 inseridos=23549 atualizados=351213 descartados=36 | 256.1s
+2026-08-24 20:59:35,975 INFO  Socrata: anonimo | rate limit: 4.0 req/s
+2026-08-24 21:04:19,577 INFO  ==============================================================================
+2026-08-24 21:04:19,578 INFO  categoria                    dataset     recebidos inseridos  atualiz. descartados  status
+2026-08-24 21:04:19,578 INFO  boilers                      6rww-hpns         647         0       647           0  ok
+2026-08-24 21:04:19,578 INFO  ceiling_fans                 2te3-nmxp        1384         0      1384           0  ok
+2026-08-24 21:04:19,579 INFO  clothes_washers              bghd-e2wd         401         0       401           0  ok
+2026-08-24 21:04:19,579 INFO  commercial_boilers           3393-mxju         386         0       386           0  ok
+2026-08-24 21:04:19,579 INFO  commercial_clothes_washers   9g6r-cpdt         124         0       124           0  ok
+2026-08-24 21:04:19,579 INFO  commercial_coffee_brewers    6xa2-5c2t          19         0        19           0  ok
+2026-08-24 21:04:19,579 INFO  commercial_dishwashers       pk8q-dim8         418         0       418           0  ok
+2026-08-24 21:04:19,580 INFO  commercial_electric_cooktops nt9t-yxu3          33         0        33           0  ok
+2026-08-24 21:04:19,580 INFO  commercial_fryers            edi8-b5vk         175         0       175           0  ok
+2026-08-24 21:04:19,580 INFO  commercial_griddles          nw5s-r5ca          47         0        47           0  ok
+2026-08-24 21:04:19,580 INFO  commercial_hot_food_holding_ wyw6-sr4d         235         0       235           0  ok
+2026-08-24 21:04:19,580 INFO  commercial_ice_machines      nak5-fsjf         593         0       593           0  ok
+2026-08-24 21:04:19,581 INFO  commercial_ovens             c8av-ccf7         370         0       370           0  ok
+2026-08-24 21:04:19,581 INFO  commercial_refrigerators_and wati-2tfp        1937         0      1937           0  ok
+2026-08-24 21:04:19,581 INFO  commercial_steam_cookers     vtsv-aq9u         200         0       200           0  ok
+2026-08-24 21:04:19,581 INFO  commercial_water_heaters     xmq6-bm79         733         0       733           0  ok
+2026-08-24 21:04:19,581 INFO  computers                    rxdj-2c88        1788         0      1788           0  ok
+2026-08-24 21:04:19,582 INFO  data_center_storage_block_i_ 3uec-2gqf          81         0        81           0  ok
+2026-08-24 21:04:19,582 INFO  data_center_storage_file_i_o put7-uu67          35         0        35           0  ok
+2026-08-24 21:04:19,582 INFO  dehumidifiers                mgiu-hu4z         550         0       550           0  ok
+2026-08-24 21:04:19,582 INFO  displays                     qbg3-d468        2847         0      2847           0  ok
+2026-08-24 21:04:19,582 INFO  electric_vehicle_supply_equi 5jwe-c8xm         468         0       468           0  ok
+2026-08-24 21:04:19,583 INFO  electric_vehicle_supply_equi t3a6-mkxz         311         0       311           0  ok
+2026-08-24 21:04:19,583 INFO  enterprise_servers           qifb-fcj2         490         0       490           0  ok
+2026-08-24 21:04:19,583 INFO  furnaces                     i97v-e8au        2796         0      2796           0  ok
+2026-08-24 21:04:19,583 INFO  geothermal_heat_pumps        acvd-5wvz        4978         0      4978           0  ok
+2026-08-24 21:04:19,583 INFO  heat_pumps                   83eb-xbyy      281828         0    281828           0  ok
+2026-08-24 21:04:19,584 INFO  imaging_equipment            t2v6-g4nf        2747         0      2747           0  ok
+2026-08-24 21:04:19,584 INFO  insulation                   kphf-22jd          36         0         0          36  ok
+2026-08-24 21:04:19,584 INFO  laboratory_grade_refrigerato g242-ysjw        1089         0      1089           0  ok
+2026-08-24 21:04:19,584 INFO  large_network_equipment      n8cx-m62r          96         0        96           0  ok
+2026-08-24 21:04:19,584 INFO  light_commercial_hvac        e4mh-a2u3       11994         0     11994           0  ok
+2026-08-24 21:04:19,584 INFO  light_fixtures_downlights    ej6d-wb4c        4599         0      4599           0  ok
+2026-08-24 21:04:19,585 INFO  medical_imaging_equipment    wjtt-3zwd           1         0         1           0  ok
+2026-08-24 21:04:19,585 INFO  pool_pumps                   m8cf-pkii         423         0       423           0  ok
+2026-08-24 21:04:19,585 INFO  products_upc_codes           8edu-y555       37997     23549     14448           0  ok
+2026-08-24 21:04:19,585 INFO  refrigerators                p5st-her9        4760         0      4760           0  ok
+2026-08-24 21:04:19,585 INFO  residential_clothes_dryers   t9u7-4d2j         663         0       663           0  ok
+2026-08-24 21:04:19,586 INFO  residential_dishwashers      q8py-6w3f         753         0       753           0  ok
+2026-08-24 21:04:19,586 INFO  residential_electric_cooking m6gi-ng33         256         0       256           0  ok
+2026-08-24 21:04:19,586 INFO  residential_freezers         8t9c-g3tn         665         0       665           0  ok
+2026-08-24 21:04:19,586 INFO  room_air_cleaners_v3_0       gaa3-swy6         236         0       236           0  ok
+2026-08-24 21:04:19,586 INFO  room_air_conditioners        5xn2-dv4h         463         0       463           0  ok
+2026-08-24 21:04:19,586 INFO  smart_thermostats            7p2p-wkbf         116         0       116           0  ok
+2026-08-24 21:04:19,587 INFO  storm_windows                qaxz-ikcb          30         0        30           0  ok
+2026-08-24 21:04:19,587 INFO  telephones                   bpzy-9tg8         290         0       290           0  ok
+2026-08-24 21:04:19,587 INFO  televisions                  pd96-rr3d         180         0       180           0  ok
+2026-08-24 21:04:19,587 INFO  uninterruptible_power_suppli ifxy-2uty         923         0       923           0  ok
+2026-08-24 21:04:19,587 INFO  vending_machines             j624-u8ux          69         0        69           0  ok
+2026-08-24 21:04:19,588 INFO  ventilating_fans             8dv7-nngq        1099         0      1099           0  ok
+2026-08-24 21:04:19,588 INFO  water_coolers                qsc8-7f7k         182         0       182           0  ok
+2026-08-24 21:04:19,588 INFO  water_heaters                pbpq-swnu        1257         0      1257           0  ok
+2026-08-24 21:04:19,588 INFO  ------------------------------------------------------------------------------
+2026-08-24 21:04:19,588 INFO  TOTAL: recebidos=374798 inseridos=23549 atualizados=351213 descartados=36 | 283.2s
+2026-08-24 22:49:23,211 INFO  Socrata: anonimo | rate limit: 4.0 req/s
+2026-08-24 22:53:18,104 INFO  ==============================================================================
+2026-08-24 22:53:18,104 INFO  categoria                    dataset     recebidos inseridos  atualiz. descartados  status
+2026-08-24 22:53:18,104 INFO  boilers                      6rww-hpns         647         0       647           0  ok
+2026-08-24 22:53:18,104 INFO  ceiling_fans                 2te3-nmxp        1384         0      1384           0  ok
+2026-08-24 22:53:18,105 INFO  clothes_washers              bghd-e2wd         401         0       401           0  ok
+2026-08-24 22:53:18,105 INFO  commercial_boilers           3393-mxju         386         0       386           0  ok
+2026-08-24 22:53:18,105 INFO  commercial_clothes_washers   9g6r-cpdt         124         0       124           0  ok
+2026-08-24 22:53:18,105 INFO  commercial_coffee_brewers    6xa2-5c2t          19         0        19           0  ok
+2026-08-24 22:53:18,106 INFO  commercial_dishwashers       pk8q-dim8         418         0       418           0  ok
+2026-08-24 22:53:18,106 INFO  commercial_electric_cooktops nt9t-yxu3          33         0        33           0  ok
+2026-08-24 22:53:18,106 INFO  commercial_fryers            edi8-b5vk         175         0       175           0  ok
+2026-08-24 22:53:18,106 INFO  commercial_griddles          nw5s-r5ca          47         0        47           0  ok
+2026-08-24 22:53:18,107 INFO  commercial_hot_food_holding_ wyw6-sr4d         235         0       235           0  ok
+2026-08-24 22:53:18,107 INFO  commercial_ice_machines      nak5-fsjf         593         0       593           0  ok
+2026-08-24 22:53:18,107 INFO  commercial_ovens             c8av-ccf7         370         0       370           0  ok
+2026-08-24 22:53:18,107 INFO  commercial_refrigerators_and wati-2tfp        1937         0      1937           0  ok
+2026-08-24 22:53:18,107 INFO  commercial_steam_cookers     vtsv-aq9u         200         0       200           0  ok
+2026-08-24 22:53:18,108 INFO  commercial_water_heaters     xmq6-bm79         733         0       733           0  ok
+2026-08-24 22:53:18,108 INFO  computers                    rxdj-2c88        1788         0      1788           0  ok
+2026-08-24 22:53:18,108 INFO  data_center_storage_block_i_ 3uec-2gqf          81         0        81           0  ok
+2026-08-24 22:53:18,108 INFO  data_center_storage_file_i_o put7-uu67          35         0        35           0  ok
+2026-08-24 22:53:18,108 INFO  dehumidifiers                mgiu-hu4z         550         0       550           0  ok
+2026-08-24 22:53:18,109 INFO  displays                     qbg3-d468        2847         0      2847           0  ok
+2026-08-24 22:53:18,109 INFO  electric_vehicle_supply_equi 5jwe-c8xm         468         0       468           0  ok
+2026-08-24 22:53:18,109 INFO  electric_vehicle_supply_equi t3a6-mkxz         311         0       311           0  ok
+2026-08-24 22:53:18,109 INFO  enterprise_servers           qifb-fcj2         490         0       490           0  ok
+2026-08-24 22:53:18,109 INFO  furnaces                     i97v-e8au        2796         0      2796           0  ok
+2026-08-24 22:53:18,110 INFO  geothermal_heat_pumps        acvd-5wvz        4978         0      4978           0  ok
+2026-08-24 22:53:18,110 INFO  heat_pumps                   83eb-xbyy      281828         0    281828           0  ok
+2026-08-24 22:53:18,110 INFO  imaging_equipment            t2v6-g4nf        2747         0      2747           0  ok
+2026-08-24 22:53:18,110 INFO  insulation                   kphf-22jd          36         0         0          36  ok
+2026-08-24 22:53:18,110 INFO  laboratory_grade_refrigerato g242-ysjw        1089         0      1089           0  ok
+2026-08-24 22:53:18,111 INFO  large_network_equipment      n8cx-m62r          96         0        96           0  ok
+2026-08-24 22:53:18,111 INFO  light_commercial_hvac        e4mh-a2u3       11994         0     11994           0  ok
+2026-08-24 22:53:18,111 INFO  light_fixtures_downlights    ej6d-wb4c        4599         0      4599           0  ok
+2026-08-24 22:53:18,111 INFO  medical_imaging_equipment    wjtt-3zwd           1         0         1           0  ok
+2026-08-24 22:53:18,111 INFO  pool_pumps                   m8cf-pkii         423         0       423           0  ok
+2026-08-24 22:53:18,112 INFO  products_upc_codes           8edu-y555       37997     23549     14448           0  ok
+2026-08-24 22:53:18,112 INFO  refrigerators                p5st-her9        4760         0      4760           0  ok
+2026-08-24 22:53:18,112 INFO  residential_clothes_dryers   t9u7-4d2j         663         0       663           0  ok
+2026-08-24 22:53:18,112 INFO  residential_dishwashers      q8py-6w3f         753         0       753           0  ok
+2026-08-24 22:53:18,112 INFO  residential_electric_cooking m6gi-ng33         256         0       256           0  ok
+2026-08-24 22:53:18,113 INFO  residential_freezers         8t9c-g3tn         665         0       665           0  ok
+2026-08-24 22:53:18,113 INFO  room_air_cleaners_v3_0       gaa3-swy6         236         0       236           0  ok
+2026-08-24 22:53:18,113 INFO  room_air_conditioners        5xn2-dv4h         463         0       463           0  ok
+2026-08-24 22:53:18,113 INFO  smart_thermostats            7p2p-wkbf         116         0       116           0  ok
+2026-08-24 22:53:18,113 INFO  storm_windows                qaxz-ikcb          30         0        30           0  ok
+2026-08-24 22:53:18,114 INFO  telephones                   bpzy-9tg8         290         0       290           0  ok
+2026-08-24 22:53:18,114 INFO  televisions                  pd96-rr3d         180         0       180           0  ok
+2026-08-24 22:53:18,114 INFO  uninterruptible_power_suppli ifxy-2uty         923         0       923           0  ok
+2026-08-24 22:53:18,114 INFO  vending_machines             j624-u8ux          69         0        69           0  ok
+2026-08-24 22:53:18,114 INFO  ventilating_fans             8dv7-nngq        1099         0      1099           0  ok
+2026-08-24 22:53:18,115 INFO  water_coolers                qsc8-7f7k         182         0       182           0  ok
+2026-08-24 22:53:18,115 INFO  water_heaters                pbpq-swnu        1257         0      1257           0  ok
+2026-08-24 22:53:18,115 INFO  ------------------------------------------------------------------------------
+2026-08-24 22:53:18,115 INFO  TOTAL: recebidos=374798 inseridos=23549 atualizados=351213 descartados=36 | 234.6s

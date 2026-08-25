@@ -21,6 +21,7 @@ public class Product {
     private String brand;
     private String model;
     private String category;
+    private String subcategory;
     private BigDecimal avg_power_w;
     private BigDecimal annual_energy_kwh;
 
@@ -32,12 +33,13 @@ public class Product {
     }
 
     public Product(UUID id, String name, String brand, String model, String category,
-                   BigDecimal avg_power_w, BigDecimal annual_energy_kwh) {
+                   String subcategory, BigDecimal avg_power_w, BigDecimal annual_energy_kwh) {
         this.id = id;
         this.name = name;
         this.brand = brand;
         this.model = model;
         this.category = category;
+        this.subcategory = subcategory;
         this.avg_power_w = avg_power_w;
         this.annual_energy_kwh = annual_energy_kwh;
     }
@@ -76,6 +78,14 @@ public class Product {
 
     public void setCategory(String category) {
         this.category = category;
+    }
+
+    public String getSubcategory() {
+        return subcategory;
+    }
+
+    public void setSubcategory(String subcategory) {
+        this.subcategory = subcategory;
     }
 
     public BigDecimal getAvg_power_w() {

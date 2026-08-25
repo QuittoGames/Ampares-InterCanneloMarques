@@ -1,9 +1,17 @@
-"""Pagination and incremental / resumable fetching.
+"""Iteracao de paginas Socrata e retomada de varredura (resume).
 
-Yields pages of raw records. Supports:
-- configurable page size and global limit
-- resume from a saved offset (so an interrupted run can continue)
-- progress logging and empty-page detection
+Decisoes da spec refletidas aqui:
+
+* Paginacao completa e DETERMINISTICA (FR-002): ``$limit``/``$offset``
+  com ``$order=:id`` (definido no client), ate esgotar o dataset. Quando
+  o total e conhecido (count), a varredura para exatamente nele; pagina
+  vazia sempre encerra a iteracao.
+* Retomada (US-3): progresso por dataset persistido em arquivo de estado
+  local (git-ignorado). Valor inteiro = proximo offset; ``"done"`` =
+  dataset concluido. Escrita ATOMICA (tmp + os.replace) — interrupcao
+  abrupta nao corrompe o estado.
+* Idempotencia torna a retomada tolerante a desalinhamento: reprocessar
+  uma pagina ja gravada apenas atualiza as mesmas linhas (uuid5).
 """
 
 from __future__ import annotations
@@ -11,85 +19,118 @@ from __future__ import annotations
 import json
 import logging
 import os
-from typing import Iterator, cast
+from collections.abc import Iterator
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
-from .api_client import SocrataClient
+if TYPE_CHECKING:
+    from .api_client import SocrataClient
 
 logger = logging.getLogger(__name__)
 
-STATE_FILE = ".collector_state.json"
+#: Tamanho de pagina padrao — lotes grandes justificados pelo hardware (A7).
+DEFAULT_PAGE_SIZE: int = 1000
 
-
-def _load_state(state_file: str) -> dict:
-    if not os.path.exists(state_file):
-        return {}
-    try:
-        with open(state_file, "r", encoding="utf-8") as fh:
-            return json.load(fh)
-    except (json.JSONDecodeError, OSError):
-        logger.warning("Could not read state file %s; starting fresh", state_file)
-        return {}
-
-
-def _save_state(state_file: str, state: dict) -> None:
-    try:
-        with open(state_file, "w", encoding="utf-8") as fh:
-            json.dump(state, fh)
-    except OSError as exc:
-        logger.warning("Could not persist state file %s: %s", state_file, exc)
+#: Marcador de dataset concluido no arquivo de estado.
+DONE: str = "done"
 
 
 def iter_pages(
-    client: SocrataClient,
+    client: "SocrataClient",
     dataset_id: str,
-    category: str,
-    page_size: int = 1000,
+    page_size: int = DEFAULT_PAGE_SIZE,
+    start_offset: int = 0,
+    total: int | None = None,
     limit: int | None = None,
-    resume: bool = False,
-    state_file: str | None = STATE_FILE,
-) -> Iterator[list[dict]]:
-    """Yield pages of raw records for one dataset.
+) -> Iterator[tuple[int, list[dict[str, Any]]]]:
+    """Itera as paginas de um dataset de forma estavel ate o fim.
 
-    When ``resume`` is True the last processed offset for the category is read
-    from ``state_file`` and iteration continues from there.
+    Args:
+        client: Cliente Socrata (uma instancia por thread).
+        dataset_id: ID 4x4 do dataset.
+        page_size: Registros por pagina (Socrata aceita ate 50000).
+        start_offset: Offset inicial (retomada).
+        total: Total conhecido (count(*)); quando informado, limita o loop.
+        limit: Teto de registros a fetcher nesta execucao (smoke tests).
+
+    Yields:
+        ``(offset_da_pagina, registros_brutos)`` — o offset permite ao
+        chamador persistir o progresso apos cada pagina gravada.
     """
-    assert not resume or state_file, "resume requires a state_file path"
-    sf = cast(str, state_file)
-    state = _load_state(sf) if resume else {}
-    offset = int(state.get(category, 0)) if resume else 0
-    fetched_total = 0
-    page_no = (offset // page_size) + 1 if page_size else 1
-
-    logger.info(
-        "Category: %s | starting at offset %d (page %d)", category, offset, page_no
-    )
+    offset = start_offset
+    fetched = 0
 
     while True:
-        page = client.fetch_page(dataset_id, offset, page_size)
+        if total is not None and offset >= total:
+            break
+        if limit is not None and fetched >= limit:
+            break
+
+        page_limit = page_size
+        if limit is not None:
+            page_limit = min(page_limit, limit - fetched)
+        if page_limit <= 0:
+            break
+
+        page = client.fetch_page(dataset_id, limit=page_limit, offset=offset)
         if not page:
-            logger.info("Empty page received for %s; stopping", category)
+            logger.info("Pagina vazia em %s (offset %d); fim", dataset_id, offset)
             break
 
-        logger.info("Page %d | fetched %d raw records", page_no, len(page))
-        yield page
+        yield offset, page
 
-        fetched_total += len(page)
+        fetched += len(page)
         offset += len(page)
-        page_no += 1
-
-        # Persist progress so a later --resume can continue.
-        if resume:
-            state[category] = offset
-            _save_state(sf, state)
-
-        if limit is not None and fetched_total >= limit:
-            logger.info("Reached --limit %d for %s", limit, category)
+        if len(page) < page_limit:
+            # Ultima pagina (menor que o pedido) — dataset esgotado.
             break
 
-    if resume:
-        # Mark category complete by clearing its cursor.
-        state.pop(category, None)
-        _save_state(sf, state)
     logger.info(
-        "Finished pagination for %s (total fetched: %d)", category, fetched_total
+        "Paginacao concluida: %s (inicio=%d, fim=%d, %d registros nesta execucao)",
+        dataset_id,
+        start_offset,
+        offset,
+        fetched,
     )
+
+
+def load_state(path: Path) -> dict[str, Any]:
+    """Carrega o estado de retomada (ou estado vazio se inexistente/corrompido)."""
+    if not path.exists():
+        return {}
+    try:
+        with path.open("r", encoding="utf-8") as fh:
+            state = json.load(fh)
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.warning("Estado ilegivel em %s (%s); recomecando", path, exc)
+        return {}
+    return state if isinstance(state, dict) else {}
+
+
+def resume_offset(state: dict[str, Any], dataset_id: str) -> int | None:
+    """Offset de retomada de um dataset; ``None`` quando ja esta concluido."""
+    value = state.get(dataset_id)
+    if value == DONE:
+        return None
+    if isinstance(value, int) and value > 0:
+        return value
+    return 0
+
+
+def save_state(path: Path, state: dict[str, Any]) -> None:
+    """Persiste o estado de forma ATOMICA (tmp + replace, US-3)."""
+    tmp = path.with_name(path.name + ".tmp")
+    try:
+        with tmp.open("w", encoding="utf-8") as fh:
+            json.dump(state, fh)
+        os.replace(tmp, path)
+    except OSError as exc:
+        logger.warning("Falha ao salvar estado %s: %s", path, exc)
+
+
+def clear_state(path: Path) -> None:
+    """Remove o arquivo de estado apos varredura 100% concluida."""
+    try:
+        path.unlink(missing_ok=True)
+    except OSError as exc:
+        logger.warning("Falha ao remover estado %s: %s", path, exc)

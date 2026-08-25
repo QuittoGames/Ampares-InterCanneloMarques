@@ -1,104 +1,169 @@
-"""PostgreSQL access layer for the product catalogue.
+"""Persistencia no PostgreSQL (Supabase): pool, garantia de tabela, upsert.
 
-Responsibilities:
-- open a connection from resolved config
-- ensure the `product` table exists (schema mirrors the JPA Product entity)
-- idempotent upsert of appliance *intrinsic* attributes only
-- rollback on error (caller controls the transaction boundary)
+Decisoes da spec refletidas aqui:
 
-Design decisions (per project spec):
-- The ENERGY STAR API is treated purely as a seed source. We store ONLY the
-  intrinsic attributes needed for consumption estimation:
-  name, brand, model, category, avg_power_w, annual_energy_kwh.
-- No source URL, raw payload, or catalogue metadata is persisted (no raw_data /
-  source_url). That would be overengineering for an estimation tool.
-- Idempotency: the primary key is a deterministic UUID (uuid5) derived from the
-  same dedup key used elsewhere, so re-runs update the same row instead of
-  duplicating it.
+* Pool de conexoes (psycopg_pool, psycopg 3) para escrita multi-thread
+  sem disputa (FR-007); transacao curta por lote (commit por lote;
+  rollback isola falhas — US-3).
+* Upsert em lote IDEMPOTENTE (``INSERT ... ON CONFLICT (id) DO UPDATE``):
+  registro novo insere, existente atualiza, nunca duplica (FR-005,
+  US-2/SC-002). O lote e ORDENADO por UUID antes da escrita — lotes
+  concorrentes travam chaves em ordem consistente, evitando deadlock
+  (edge case da spec).
+* INSERT com as 7 colunas EXPLICITAS do contrato (R7): ``source`` e
+  ``source_id`` existem so em memoria e nunca vao ao banco.
+* Garantia de estrutura (FR-006): ``CREATE TABLE IF NOT EXISTS product``
+  com o contrato exato — sem tocar em outras tabelas (FR-010: NUNCA
+  ``userproduct`` nem ``users``).
+* Estatisticas inserted/updated por lote: pre-count por
+  ``WHERE id = ANY(%s::uuid[])`` — aproximacao estavel sob concorrencia
+  (uuid5 torna colisao inter-lote rara e inofensiva ao dado).
 """
 
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
-import psycopg
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
-from .config import DbConfig
-from .models import Product
+    from psycopg_pool import ConnectionPool
+
+    from .config import DbConfig
+    from .models import Product
 
 logger = logging.getLogger(__name__)
 
+#: Tabela de destino — UNICA tabela escrita pelo coletor (FR-010).
 TABLE = "product"
 
+_CREATE_SQL = """
+CREATE TABLE IF NOT EXISTS product (
+    id                UUID PRIMARY KEY,
+    name              VARCHAR(150),
+    brand             VARCHAR(255),
+    model             VARCHAR(255),
+    category          VARCHAR(255),
+    subcategory       VARCHAR(255),
+    avg_power_w       NUMERIC,
+    annual_energy_kwh NUMERIC
+)
+"""
 
-def _with_sslmode(conninfo: str) -> str:
-    """Ensure SSL is requested for managed Postgres (Supabase requires it).
+#: Migracao idempotente para bancos criados antes da coluna ``subcategory``.
+_ALTER_SQL = "ALTER TABLE product ADD COLUMN IF NOT EXISTS subcategory VARCHAR(255)"
 
-    Only added when absent, so a user-supplied ``sslmode`` (e.g. ``disable``
-    for local dev) is always respected.
+#: Contrato de 8 colunas explicitas (R7) — nada de reflexao sobre o dataclass.
+_UPSERT_SQL = """
+INSERT INTO product
+    (id, name, brand, model, category, subcategory, avg_power_w, annual_energy_kwh)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+ON CONFLICT (id) DO UPDATE SET
+    name              = EXCLUDED.name,
+    brand             = EXCLUDED.brand,
+    model             = EXCLUDED.model,
+    category          = EXCLUDED.category,
+    subcategory       = EXCLUDED.subcategory,
+    avg_power_w       = EXCLUDED.avg_power_w,
+    annual_energy_kwh = EXCLUDED.annual_energy_kwh
+"""
+
+_COUNT_EXISTING_SQL = "SELECT count(*) FROM product WHERE id = ANY(%s::uuid[])"
+
+
+def create_pool(config: "DbConfig", max_size: int = 10) -> "ConnectionPool":
+    """Cria o pool de conexoes para escrita concorrente (FR-007).
+
+    Args:
+        config: Configuracao do banco (vem do .env do projeto pai).
+        max_size: Tamanho maximo do pool (escritoras + folga).
+
+    Raises:
+        RuntimeError: pool nao conseguiu abrir (falha rapida, mensagem clara).
     """
-    if "sslmode" in conninfo:
-        return conninfo
-    if conninfo.startswith(("postgresql://", "postgres://")):
-        sep = "&" if "?" in conninfo else "?"
-        return f"{conninfo}{sep}sslmode=require"
-    return f"{conninfo} sslmode=require"
+    from psycopg_pool import ConnectionPool
 
-
-def get_connection(cfg: DbConfig) -> psycopg.Connection:
-    conninfo = _with_sslmode(cfg.conninfo)
     try:
-        conn = psycopg.connect(conninfo)
-    except psycopg.Error as exc:
-        raise RuntimeError(f"Could not connect to PostgreSQL: {exc}") from exc
-    return conn
+        pool = ConnectionPool(
+            conninfo=config.conninfo,
+            min_size=1,
+            max_size=max_size,
+            name="energy-collector",
+            open=True,
+        )
+    except Exception as exc:  # psycopg.Error + variantes de pool
+        raise RuntimeError(f"Nao foi possivel conectar ao PostgreSQL: {exc}") from exc
+    logger.info(
+        "Pool de conexoes aberto (host=%s, db=%s, max=%d)",
+        config.host,
+        config.database,
+        max_size,
+    )
+    return pool
 
 
-def ensure_table(conn: psycopg.Connection) -> None:
-    # Column types mirror the JPA Product entity so the collector can seed the
-    # same `product` table the Spring app reads/writes.
-    sql = f"""
-    CREATE TABLE IF NOT EXISTS {TABLE} (
-        id                UUID PRIMARY KEY,
-        name              VARCHAR(150),
-        brand             VARCHAR(255),
-        model             VARCHAR(255),
-        category          VARCHAR(255),
-        avg_power_w       NUMERIC,
-        annual_energy_kwh NUMERIC
-    );
+def ensure_table(pool: "ConnectionPool") -> None:
+    """Garante a tabela ``product`` com o contrato exato (FR-006).
+
+    Idempotente: cria a tabela se ausente e aplica a migracao da coluna
+    ``subcategory`` em bancos legados (``ADD COLUMN IF NOT EXISTS``).
     """
-    with conn.transaction():
-        conn.execute(sql)
-    logger.info("Ensured table '%s' exists", TABLE)
+    with pool.connection() as conn, conn.transaction():
+        conn.execute(_CREATE_SQL)
+        conn.execute(_ALTER_SQL)
+    logger.info("Tabela '%s' garantida", TABLE)
 
 
-def upsert(conn: psycopg.Connection, product: Product) -> str:
-    """Insert or update a product. Returns the action: 'inserted' or 'updated'."""
-    pid = product.product_id()
-    sql = f"""
-    INSERT INTO {TABLE}
-        (id, name, brand, model, category, avg_power_w, annual_energy_kwh)
-    VALUES (%s, %s, %s, %s, %s, %s, %s)
-    ON CONFLICT (id) DO UPDATE SET
-        name = EXCLUDED.name,
-        brand = EXCLUDED.brand,
-        model = EXCLUDED.model,
-        category = EXCLUDED.category,
-        avg_power_w = EXCLUDED.avg_power_w,
-        annual_energy_kwh = EXCLUDED.annual_energy_kwh
-    RETURNING (xmax = 0) AS inserted
+class UpsertStats:
+    """Contadores de um upsert em lote (relatorio final, FR-011)."""
+
+    __slots__ = ("inserted", "updated")
+
+    def __init__(self, inserted: int = 0, updated: int = 0) -> None:
+        self.inserted = inserted
+        self.updated = updated
+
+
+def upsert_batch(pool: "ConnectionPool", products: "Sequence[Product]") -> UpsertStats:
+    """Upsert idempotente de um lote; falha afeta SOMENTE este lote.
+
+    Ordena por UUID (anti-deadlock), pre-conta existentes para estatistica
+    e grava em uma unica transacao curta.
     """
-    row = conn.execute(
-        sql,
+    if not products:
+        return UpsertStats()
+
+    ordered = sorted(products, key=lambda p: p.product_id())
+    ids = [str(p.product_id()) for p in ordered]
+    params = [
         (
-            str(pid),
-            product.name,
-            product.brand,
-            product.model,
-            product.category,
-            product.avg_power_w,
-            product.annual_energy_kwh,
-        ),
-    ).fetchone()
-    return "inserted" if row and row[0] else "updated"
+            str(p.product_id()),
+            p.name,
+            p.brand,
+            p.model,
+            p.category,
+            p.subcategory,
+            p.avg_power_w,
+            p.annual_energy_kwh,
+        )
+        for p in ordered
+    ]
+
+    with pool.connection() as conn, conn.transaction():
+        existing = conn.execute(_COUNT_EXISTING_SQL, (ids,)).fetchone()[0]
+        conn.execute("SET LOCAL synchronous_commit = OFF")
+        with conn.cursor() as cur:
+            cur.executemany(_UPSERT_SQL, params)
+
+    written = len(ordered)
+    updated = min(existing, written)
+    return UpsertStats(inserted=written - updated, updated=updated)
+
+
+def close_pool(pool: "ConnectionPool") -> None:
+    """Fecha o pool de forma limpa (fim da varredura)."""
+    try:
+        pool.close()
+    except Exception:  # noqa: BLE001 - fechamento nunca quebra o caller
+        logger.debug("Falha ao fechar pool", exc_info=True)
