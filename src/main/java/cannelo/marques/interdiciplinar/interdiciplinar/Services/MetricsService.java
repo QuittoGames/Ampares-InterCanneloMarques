@@ -37,12 +37,6 @@ public class MetricsService{
                 .orElseThrow(() -> new UserNotFoundException(
                     "Parameter user can't be found in database"));
 
-        List<Product> products = productRepository.findByUser_Id(user.getId());
-        Optional.of(products)
-                .filter(product -> !product.isEmpty())
-                .orElseThrow(() -> new ProductEmptyException(
-                    "Product list cannot be empty"));
-
         List<UserProduct> userProductReg = repository.findByUser(user);
         Optional.of(userProductReg)
                 .filter(reg -> !reg.isEmpty())
@@ -51,17 +45,15 @@ public class MetricsService{
 
         BigDecimal consumeInYear = BigDecimal.ZERO;
 
-        BigDecimal activeHours = userProductReg.stream()
-                .map(UserProduct::getAvg_active_hours)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        for (UserProduct up : userProductReg) {
+            if (up.getProduct() != null && up.getProduct().getAvgPowerW() != null && up.getAvgActiveHours() != null) {
+                BigDecimal consumption = up.getProduct().getAvgPowerW()
+                        .multiply(up.getAvgActiveHours());
 
-        for (Product product : products) {
-            BigDecimal consumption = product.getAvg_power_w()
-                    .multiply(activeHours);
-
-            consumeInYear = consumeInYear.add(
-                    consumption.divide(BigDecimal.valueOf(1000))
-            );
+                consumeInYear = consumeInYear.add(
+                        consumption.divide(BigDecimal.valueOf(1000))
+                );
+            }
         }
 
         return Optional.of(consumeInYear);

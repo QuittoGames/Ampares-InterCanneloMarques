@@ -22,8 +22,11 @@ public class Product {
     private String model;
     private String category;
     private String subcategory;
-    private BigDecimal avg_power_w;
-    private BigDecimal annual_energy_kwh;
+    @Column(name = "avg_power_w")
+    private BigDecimal avgPowerW;
+
+    @Column(name = "annual_energy_kwh")
+    private BigDecimal annualEnergyKwh;
 
     public Product() {
     }
@@ -33,15 +36,15 @@ public class Product {
     }
 
     public Product(UUID id, String name, String brand, String model, String category,
-                   String subcategory, BigDecimal avg_power_w, BigDecimal annual_energy_kwh) {
+                   String subcategory, BigDecimal avgPowerW, BigDecimal annualEnergyKwh) {
         this.id = id;
         this.name = name;
         this.brand = brand;
         this.model = model;
         this.category = category;
         this.subcategory = subcategory;
-        this.avg_power_w = avg_power_w;
-        this.annual_energy_kwh = annual_energy_kwh;
+        this.avgPowerW = avgPowerW;
+        this.annualEnergyKwh = annualEnergyKwh;
     }
 
     public UUID getId() {
@@ -88,19 +91,19 @@ public class Product {
         this.subcategory = subcategory;
     }
 
-    public BigDecimal getAvg_power_w() {
-        return avg_power_w;
+    public BigDecimal getAvgPowerW() {
+        return avgPowerW;
     }
 
-    public void setAvg_power_w(BigDecimal avg_power_w) {
-        this.avg_power_w = avg_power_w;
+    public void setAvgPowerW(BigDecimal avgPowerW) {
+        this.avgPowerW = avgPowerW;
     }
 
-    public BigDecimal getAnnual_energy_kwh() {
-        return annual_energy_kwh;
+    public BigDecimal getAnnualEnergyKwh() {
+        return annualEnergyKwh;
     }
 
-    public void setAnnual_energy_kwh(BigDecimal annual_energy_kwh) {
-        this.annual_energy_kwh = annual_energy_kwh;
+    public void setAnnualEnergyKwh(BigDecimal annualEnergyKwh) {
+        this.annualEnergyKwh = annualEnergyKwh;
     }
 }

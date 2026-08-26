@@ -12,6 +12,4 @@ public interface UserReository extends JpaRepository<User, Integer>{
 	List<User> findByNameContainingIgnoreCase(String name);
 
 	boolean existsByName(String name);
-	boolean existsById(String name);
-
 }
