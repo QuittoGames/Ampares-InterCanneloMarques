@@ -1,6 +1,7 @@
 package cannelo.marques.interdiciplinar.interdiciplinar.Services;
 
 import org.springframework.stereotype.Service;
+import java.lang.Math;
 
 import cannelo.marques.interdiciplinar.interdiciplinar.Repository.ProductRepository;
 
@@ -12,6 +13,4 @@ public class ProductService {
         this.repository = repository;
     }
 
-    public void getAverageConsumption() {
-    }
 }

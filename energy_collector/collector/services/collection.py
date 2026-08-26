@@ -33,6 +33,7 @@ from typing import TYPE_CHECKING, Any, Callable
 from ..api_client import SocrataClient, SocrataError
 from ..config import KNOWN_DATASETS, STATE_FILE
 from ..database import UpsertStats, upsert_batch
+from ..exceptions import PersistenceError
 from ..normalization import normalize, slugify_category
 from ..pagination import (
     DEFAULT_PAGE_SIZE,
@@ -283,8 +284,9 @@ class CollectionService:
 
         def producer(dataset_id: str, category: str) -> None:
             rep = reports[category]
-            client = self._make_client()
+            client = None
             try:
+                client = self._make_client()
                 start = 0
                 if stateful:
                     offset = resume_offset(state, dataset_id)
@@ -312,7 +314,8 @@ class CollectionService:
                 )
                 rep.status = "failed"
             finally:
-                client.close()
+                if client is not None:
+                    client.close()
                 work_q.put((dataset_id, category, _DONE_OFFSET, None))
 
         def writer() -> None:
@@ -329,7 +332,8 @@ class CollectionService:
                                 save_state(self.state_path, state)
                         continue
                     rep = reports[category]
-                    assert page is not None
+                    if page is None:
+                        continue
                     try:
                         products, discarded = self._process_page(
                             dataset_id, category, page
@@ -391,13 +395,14 @@ class CollectionService:
     ) -> None:
         try:
             stats: UpsertStats = upsert_batch(self.pool, products)
-        except Exception as exc:  # noqa: BLE001 - lote isolado, varredura segue
+        except PersistenceError as exc:  # erro de infra ja tipado
             logger.error(
                 "[%s] falha ao gravar lote offset=%d (%s) — lote descartado",
                 dataset_id,
                 offset,
                 exc,
             )
+            rep.status = "failed"
             return
 
         def _accumulate() -> None:

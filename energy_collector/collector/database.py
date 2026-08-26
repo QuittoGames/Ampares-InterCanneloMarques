@@ -25,6 +25,8 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+from .exceptions import PersistenceError
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
@@ -108,10 +110,16 @@ def ensure_table(pool: "ConnectionPool") -> None:
 
     Idempotente: cria a tabela se ausente e aplica a migracao da coluna
     ``subcategory`` em bancos legados (``ADD COLUMN IF NOT EXISTS``).
+
+    Raises:
+        PersistenceError: erro de infraestrutura do banco traduzido.
     """
-    with pool.connection() as conn, conn.transaction():
-        conn.execute(_CREATE_SQL)
-        conn.execute(_ALTER_SQL)
+    try:
+        with pool.connection() as conn, conn.transaction():
+            conn.execute(_CREATE_SQL)
+            conn.execute(_ALTER_SQL)
+    except Exception as exc:  # psycopg.Error + erros de pool
+        raise PersistenceError(f"Falha ao garantir a tabela '{TABLE}': {exc}") from exc
     logger.info("Tabela '%s' garantida", TABLE)
 
 
@@ -130,6 +138,10 @@ def upsert_batch(pool: "ConnectionPool", products: "Sequence[Product]") -> Upser
 
     Ordena por UUID (anti-deadlock), pre-conta existentes para estatistica
     e grava em uma unica transacao curta.
+
+    Raises:
+        PersistenceError: erro de infraestrutura do banco traduzido (o
+            lote que falha e isolado pelo chamador).
     """
     if not products:
         return UpsertStats()
@@ -150,11 +162,16 @@ def upsert_batch(pool: "ConnectionPool", products: "Sequence[Product]") -> Upser
         for p in ordered
     ]
 
-    with pool.connection() as conn, conn.transaction():
-        existing = conn.execute(_COUNT_EXISTING_SQL, (ids,)).fetchone()[0]
-        conn.execute("SET LOCAL synchronous_commit = OFF")
-        with conn.cursor() as cur:
-            cur.executemany(_UPSERT_SQL, params)
+    try:
+        with pool.connection() as conn, conn.transaction():
+            existing = conn.execute(_COUNT_EXISTING_SQL, (ids,)).fetchone()[0]
+            conn.execute("SET LOCAL synchronous_commit = OFF")
+            with conn.cursor() as cur:
+                cur.executemany(_UPSERT_SQL, params)
+    except Exception as exc:  # psycopg.Error + erros de pool
+        raise PersistenceError(
+            f"Falha ao gravar lote de {len(ordered)} produtos: {exc}"
+        ) from exc
 
     written = len(ordered)
     updated = min(existing, written)
