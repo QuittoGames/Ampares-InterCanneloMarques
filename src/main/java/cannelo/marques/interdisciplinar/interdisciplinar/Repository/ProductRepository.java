@@ -1,4 +1,4 @@
-package cannelo.marques.interdiciplinar.interdiciplinar.Repository;
+package cannelo.marques.interdisciplinar.interdisciplinar.Repository;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -6,7 +6,7 @@ import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import cannelo.marques.interdiciplinar.interdiciplinar.Models.Product;
+import cannelo.marques.interdisciplinar.interdisciplinar.Models.Product;
 
 public interface ProductRepository extends JpaRepository<Product, UUID> {
 

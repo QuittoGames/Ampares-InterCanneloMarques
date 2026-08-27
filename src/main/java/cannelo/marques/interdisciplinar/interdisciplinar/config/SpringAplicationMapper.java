@@ -1,4 +1,4 @@
-package cannelo.marques.interdiciplinar.interdiciplinar.config;
+package cannelo.marques.interdisciplinar.interdisciplinar.config;
 
 import org.springframework.context.annotation.Configuration;
 

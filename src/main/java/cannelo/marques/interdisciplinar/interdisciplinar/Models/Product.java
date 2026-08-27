@@ -1,4 +1,4 @@
-package cannelo.marques.interdiciplinar.interdiciplinar.Models;
+package cannelo.marques.interdisciplinar.interdisciplinar.Models;
 
 import java.math.BigDecimal;
 import java.util.UUID;

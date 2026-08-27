@@ -68,6 +68,7 @@ class Product:
     subcategory: str
     avg_power_w: Decimal | None
     annual_energy_kwh: Decimal | None
+    standby_power_w: Decimal | None
     source: str
     source_id: str | None
     dataset_category: str | None = None
@@ -144,6 +145,10 @@ class NormalizedProduct:
     equivalent_hours_year_day: Decimal | None = None
     estimated_daily_energy_kwh: Decimal | None = None
     estimated_cost: Decimal | None = None
+    # Potencia em standby (W) extraida da fonte — SOURCE, carregada para
+    # rastreabilidade. O consumo em standby completo depende de horas ativas
+    # e periodo, que nao sao atributos de catalogo.
+    standby_power_w: Decimal | None = None
     # Tarifa (moeda/kWh) efetivamente usada nos calculos, quando aplicavel.
     tariff_per_kwh: Decimal | None = None
 

@@ -25,6 +25,7 @@ from collector.normalization import (
     compute_equivalent_hours_year_day,
     compute_estimated_cost,
     compute_estimated_daily_energy,
+    compute_standby_energy_kwh,
     normalize,
     normalize_record,
 )
@@ -172,6 +173,44 @@ class TestDerived:
         assert cost == Decimal("60.00")
         # Tarifa ausente -> None (nunca assumida arbitrariamente).
         assert compute_estimated_cost(Decimal("100"), None) is None
+
+    def test_compute_standby_energy_kwh(self) -> None:
+        # E_standby = 10 W * (24 - 8 h) * 30 dias / 1000 = 4.8 kWh
+        standby = compute_standby_energy_kwh(Decimal("10"), Decimal("8"), Decimal("30"))
+        assert standby == Decimal("4.8")
+
+    def test_compute_standby_energy_kwh_invalid_inputs(self) -> None:
+        # Qualquer entrada ausente -> None.
+        assert compute_standby_energy_kwh(None, Decimal("8"), Decimal("30")) is None
+        assert compute_standby_energy_kwh(Decimal("10"), None, Decimal("30")) is None
+        assert compute_standby_energy_kwh(Decimal("10"), Decimal("8"), None) is None
+        # H_ativo fora de [0, 24] -> None (standby negativo impossivel).
+        assert (
+            compute_standby_energy_kwh(Decimal("10"), Decimal("25"), Decimal("30"))
+            is None
+        )
+        # Periodo sem dias -> None.
+        assert (
+            compute_standby_energy_kwh(Decimal("10"), Decimal("8"), Decimal("0"))
+            is None
+        )
+
+    def test_extract_standby_power_from_record(self) -> None:
+        # O campo de standby deve ser reconhecido e extraido (nao ignorado).
+        raw = {
+            "pd_id": "X1",
+            "brand_name": "ACME",
+            "model_name": "M1",
+            "power_consumption_in_on_mode_watts": "120",
+            "power_consumption_in_standby_mode_when_network_connected_watts": "0.5",
+            "annual_energy_use_kwh": "200",
+        }
+        rec = normalize_record(raw, "unknown-ds", "custom")
+        assert rec is not None
+        assert rec.avg_power_w == Decimal("120.0")
+        assert rec.standby_power_w == Decimal("0.5")
+        # E chega ao compute_derived (rastreabilidade).
+        assert rec.product.standby_power_w == Decimal("0.5")
 
     def test_populate_derived_from_record(self) -> None:
         raw = {

@@ -1,4 +1,4 @@
-package cannelo.marques.interdiciplinar.interdiciplinar.Models;
+package cannelo.marques.interdisciplinar.interdisciplinar.Models;
 
 import java.util.List;
 
@@ -10,7 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 
-import cannelo.marques.interdiciplinar.interdiciplinar.Models.UserProduct;
+import cannelo.marques.interdisciplinar.interdisciplinar.Models.UserProduct;
 
 @Entity
 @Table(name = "users")

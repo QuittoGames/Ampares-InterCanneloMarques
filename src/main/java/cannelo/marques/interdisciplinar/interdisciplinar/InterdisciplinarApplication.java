@@ -1,13 +1,13 @@
-package cannelo.marques.interdiciplinar.interdiciplinar;
+package cannelo.marques.interdisciplinar.interdisciplinar;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class InterdiciplinarApplication {
+public class InterdisciplinarApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(InterdiciplinarApplication.class, args);
+		SpringApplication.run(InterdisciplinarApplication.class, args);
 	}
 
 }

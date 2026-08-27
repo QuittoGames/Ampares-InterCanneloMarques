@@ -1,8 +1,8 @@
-package cannelo.marques.interdiciplinar.interdiciplinar.Repository;
+package cannelo.marques.interdisciplinar.interdisciplinar.Repository;
 
-import cannelo.marques.interdiciplinar.interdiciplinar.Models.Product;
-import cannelo.marques.interdiciplinar.interdiciplinar.Models.User;
-import cannelo.marques.interdiciplinar.interdiciplinar.Models.UserProduct;
+import cannelo.marques.interdisciplinar.interdisciplinar.Models.Product;
+import cannelo.marques.interdisciplinar.interdisciplinar.Models.User;
+import cannelo.marques.interdisciplinar.interdisciplinar.Models.UserProduct;
 import java.math.BigDecimal;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;

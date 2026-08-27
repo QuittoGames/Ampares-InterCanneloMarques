@@ -73,6 +73,20 @@ ANNUAL_RE = re.compile(
     re.IGNORECASE,
 )
 
+#: Equivalencias obvias de nomes de coluna de POTENCIA EM STANDBY (W).
+#: Explicitas e priorizadas — casam apenas campos de standby/idle.
+STANDBY_FIELD_EQUIVALENTS: tuple[str, ...] = (
+    "standby_power_watts",
+    "power_consumption_in_standby_mode_watts",
+    "standby_power_w",
+    "standby_watts",
+    "power_standby_watts",
+    "standby_mode_watts",
+)
+
+#: Regex para potencia em standby (usada so para datasets desconhecidos).
+STANDBY_RE = re.compile(r"standby|idle", re.IGNORECASE)
+
 _PREFIX_RE = re.compile(r"energy star certified", re.IGNORECASE)
 
 #: Dias em um ano (base para derivados diarios).
@@ -187,6 +201,24 @@ def _match_power_key(raw: dict[str, Any]) -> str | None:
     return (preferred or keys)[0]
 
 
+def _match_standby_key(raw: dict[str, Any]) -> str | None:
+    """Reconhece a coluna de potencia em standby (W) de forma segura.
+
+    Diferente de :func:`_match_power_key`, AQUI queremos justamente os
+    campos de standby/idle. Prioriza equivalencias explicitas; cai na
+    regex generica so para datasets desconhecidos.
+    """
+    for equiv in STANDBY_FIELD_EQUIVALENTS:
+        if equiv in raw:
+            return equiv
+    keys = [k for k in raw if STANDBY_RE.search(k)]
+    if not keys:
+        return None
+    # Entre varios matches, prefere os que dizem respeito a watts.
+    preferred = [k for k in keys if "watt" in k.lower()]
+    return (preferred or keys)[0]
+
+
 def _match_annual_key(raw: dict[str, Any]) -> str | None:
     """Reconhece a coluna de energia anual de forma segura (equivalencias)."""
     for equiv in ANNUAL_FIELD_EQUIVALENTS:
@@ -220,8 +252,8 @@ def _extract_brand_model(
 
 def _extract_energy(
     raw: dict[str, Any], cfg: dict[str, str | None] | None
-) -> tuple[Decimal | None, Decimal | None]:
-    """Extrai ``(avg_power_w, annual_energy_kwh)`` brutos (SOURCE).
+) -> tuple[Decimal | None, Decimal | None, Decimal | None]:
+    """Extrai ``(avg_power_w, annual_energy_kwh, standby_power_w)`` brutos (SOURCE).
 
     Usa mapeamento verificado quando conhecido; equivalencias obvias e
     regex generica para desconhecidos. Campos nao interpretaveis -> None.
@@ -235,15 +267,25 @@ def _extract_energy(
             if cfg["annual"]
             else None
         )
-        return power, annual
+        standby_key = cfg.get("standby")
+        standby = (
+            _to_decimal(raw.get(standby_key), "standby_power_w")
+            if standby_key
+            else None
+        )
+        return power, annual, standby
 
     power_key = _match_power_key(raw)
     annual_key = _match_annual_key(raw)
+    standby_key = _match_standby_key(raw)
     power = _to_decimal(raw.get(power_key), "avg_power_w") if power_key else None
     annual = (
         _to_decimal(raw.get(annual_key), "annual_energy_kwh") if annual_key else None
     )
-    return power, annual
+    standby = (
+        _to_decimal(raw.get(standby_key), "standby_power_w") if standby_key else None
+    )
+    return power, annual, standby
 
 
 def _extract_source_id(raw: dict[str, Any], model: str | None) -> str | None:
@@ -311,16 +353,48 @@ def compute_estimated_cost(
     return annual_energy_kwh * tariff_per_kwh
 
 
+def compute_standby_energy_kwh(
+    standby_power_w: Decimal | None,
+    active_hours_per_day: Decimal | None,
+    days: Decimal | None,
+) -> Decimal | None:
+    """Consumo em standby (kWh): ``E_standby = P_standby * (24 - H_ativo) * D / 1000``.
+
+    Onde:
+
+    * ``P_standby`` (``standby_power_w``): potencia em standby (W).
+    * ``H_ativo`` (``active_hours_per_day``): horas de uso ativo por dia.
+    * ``D`` (``days``): quantidade de dias do periodo.
+    * Resultado em kWh.
+
+    Nenhum valor e inventado: ausencia de qualquer entrada -> ``None``.
+    Retorna ``None`` tambem quando ``H_ativo`` esta fora de ``[0, 24]``
+    (standby negativo impossivel) ou ``days <= 0``.
+    """
+    if standby_power_w is None or active_hours_per_day is None or days is None:
+        return None
+    if active_hours_per_day < 0 or active_hours_per_day > 24:
+        return None
+    if days <= 0:
+        return None
+    standby_hours_per_day = Decimal("24") - active_hours_per_day
+    return standby_power_w * standby_hours_per_day * days / Decimal("1000")
+
+
 def compute_derived(
     avg_power_w: Decimal | None,
     annual_energy_kwh: Decimal | None,
     tariff_per_kwh: Decimal | None = None,
+    standby_power_w: Decimal | None = None,
 ) -> dict[str, Decimal | None]:
     """Calcula todos os derivados deterministicos de uma vez.
 
     Retorna dict com as chaves dos campos DERIVED DATA de
     :class:`NormalizedProduct`. Nenhum valor inventado: ausentes ou
-    divisao por zero -> ``None``.
+    divisao por zero -> ``None``. ``standby_power_w`` e carregado aqui
+    para rastreabilidade; o consumo em standby completo
+    (:func:`compute_standby_energy_kwh`) exige tambem horas ativas e o
+    periodo em dias, que nao sao atributos de catalogo.
     """
     equivalent_hours_year = compute_equivalent_hours_year(
         avg_power_w, annual_energy_kwh
@@ -332,6 +406,7 @@ def compute_derived(
         ),
         "estimated_daily_energy_kwh": compute_estimated_daily_energy(annual_energy_kwh),
         "estimated_cost": compute_estimated_cost(annual_energy_kwh, tariff_per_kwh),
+        "standby_power_w": standby_power_w,
     }
 
 
@@ -387,7 +462,7 @@ def normalize_record(
     cfg = KNOWN_DATASETS.get(dataset_id)
 
     brand, model = _extract_brand_model(raw, cfg)
-    raw_power, raw_annual = _extract_energy(raw, cfg)
+    raw_power, raw_annual, raw_standby = _extract_energy(raw, cfg)
 
     source_id = _extract_source_id(raw, model)
 
@@ -415,13 +490,16 @@ def normalize_record(
         or "Não categorizado",
         avg_power_w=raw_power,
         annual_energy_kwh=raw_annual,
+        standby_power_w=raw_standby,
         source=SOURCE_NAME,
         source_id=source_id,
         dataset_category=category,
         dataset_id=dataset_id,
     )
 
-    derived = compute_derived(raw_power, raw_annual, tariff_per_kwh)
+    derived = compute_derived(
+        raw_power, raw_annual, tariff_per_kwh, standby_power_w=raw_standby
+    )
 
     return NormalizedProduct(
         product=product,

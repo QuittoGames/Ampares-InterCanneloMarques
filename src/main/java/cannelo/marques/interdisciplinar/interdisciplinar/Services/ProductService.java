@@ -1,9 +1,9 @@
-package cannelo.marques.interdiciplinar.interdiciplinar.Services;
+package cannelo.marques.interdisciplinar.interdisciplinar.Services;
 
 import org.springframework.stereotype.Service;
 import java.lang.Math;
 
-import cannelo.marques.interdiciplinar.interdiciplinar.Repository.ProductRepository;
+import cannelo.marques.interdisciplinar.interdisciplinar.Repository.ProductRepository;
 
 @Service
 public class ProductService {

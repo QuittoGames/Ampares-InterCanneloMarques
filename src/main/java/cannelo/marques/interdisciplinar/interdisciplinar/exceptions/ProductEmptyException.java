@@ -1,4 +1,4 @@
-package cannelo.marques.interdiciplinar.interdiciplinar.execepitons;
+package cannelo.marques.interdisciplinar.interdisciplinar.exceptions;
 
 public class ProductEmptyException extends RuntimeException {
     public ProductEmptyException(String message) {

@@ -49,18 +49,25 @@ CREATE TABLE IF NOT EXISTS product (
     category          VARCHAR(255),
     subcategory       VARCHAR(255),
     avg_power_w       NUMERIC,
-    annual_energy_kwh NUMERIC
+    annual_energy_kwh NUMERIC,
+    standby_power_w   NUMERIC
 )
 """
 
 #: Migracao idempotente para bancos criados antes da coluna ``subcategory``.
 _ALTER_SQL = "ALTER TABLE product ADD COLUMN IF NOT EXISTS subcategory VARCHAR(255)"
 
-#: Contrato de 8 colunas explicitas (R7) — nada de reflexao sobre o dataclass.
+#: Migracao idempotente para bancos criados antes da coluna ``standby_power_w``.
+_ALTER_STANDBY_SQL = (
+    "ALTER TABLE product ADD COLUMN IF NOT EXISTS standby_power_w NUMERIC"
+)
+
+#: Contrato de colunas explicitas (R7) — nada de reflexao sobre o dataclass.
 _UPSERT_SQL = """
 INSERT INTO product
-    (id, name, brand, model, category, subcategory, avg_power_w, annual_energy_kwh)
-VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+    (id, name, brand, model, category, subcategory, avg_power_w, annual_energy_kwh,
+     standby_power_w)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
 ON CONFLICT (id) DO UPDATE SET
     name              = EXCLUDED.name,
     brand             = EXCLUDED.brand,
@@ -68,7 +75,8 @@ ON CONFLICT (id) DO UPDATE SET
     category          = EXCLUDED.category,
     subcategory       = EXCLUDED.subcategory,
     avg_power_w       = EXCLUDED.avg_power_w,
-    annual_energy_kwh = EXCLUDED.annual_energy_kwh
+    annual_energy_kwh = EXCLUDED.annual_energy_kwh,
+    standby_power_w   = EXCLUDED.standby_power_w
 """
 
 _COUNT_EXISTING_SQL = "SELECT count(*) FROM product WHERE id = ANY(%s::uuid[])"
@@ -118,6 +126,7 @@ def ensure_table(pool: "ConnectionPool") -> None:
         with pool.connection() as conn, conn.transaction():
             conn.execute(_CREATE_SQL)
             conn.execute(_ALTER_SQL)
+            conn.execute(_ALTER_STANDBY_SQL)
     except Exception as exc:  # psycopg.Error + erros de pool
         raise PersistenceError(f"Falha ao garantir a tabela '{TABLE}': {exc}") from exc
     logger.info("Tabela '%s' garantida", TABLE)
@@ -158,6 +167,7 @@ def upsert_batch(pool: "ConnectionPool", products: "Sequence[Product]") -> Upser
             p.subcategory,
             p.avg_power_w,
             p.annual_energy_kwh,
+            p.standby_power_w,
         )
         for p in ordered
     ]
