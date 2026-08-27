@@ -11,7 +11,6 @@ import cannelo.marques.interdisciplinar.interdisciplinar.Models.UserProduct;
 import cannelo.marques.interdisciplinar.interdisciplinar.Repository.ProductRepository;
 import cannelo.marques.interdisciplinar.interdisciplinar.Repository.UserProductRepository;
 import cannelo.marques.interdisciplinar.interdisciplinar.Repository.UserRepository;
-import cannelo.marques.interdisciplinar.interdisciplinar.exceptions.UserNotFoundException;
 
 @Service
 public class UserService {
