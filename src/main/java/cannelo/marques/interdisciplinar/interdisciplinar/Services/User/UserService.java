@@ -1,49 +1,96 @@
 package cannelo.marques.interdisciplinar.interdisciplinar.Services.User;
 
-import java.math.BigDecimal;
+import cannelo.marques.interdisciplinar.interdisciplinar.Repository.ProductRepository;
+import cannelo.marques.interdisciplinar.interdisciplinar.Repository.RegistryUserProductRepository;
+import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
-import java.util.function.Function;
+import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 
+import cannelo.marques.interdisciplinar.interdisciplinar.DTO.ProductDTO;
+import cannelo.marques.interdisciplinar.interdisciplinar.Models.Product;
 import cannelo.marques.interdisciplinar.interdisciplinar.Models.User;
-import cannelo.marques.interdisciplinar.interdisciplinar.Models.UserProduct;
-import cannelo.marques.interdisciplinar.interdisciplinar.Repository.ProductRepository;
-import cannelo.marques.interdisciplinar.interdisciplinar.Repository.UserProductRepository;
+import cannelo.marques.interdisciplinar.interdisciplinar.Models.RegistryUserProduct;
 import cannelo.marques.interdisciplinar.interdisciplinar.Repository.UserRepository;
+import cannelo.marques.interdisciplinar.interdisciplinar.Services.Registry.RegistryUserService;
+import cannelo.marques.interdisciplinar.interdisciplinar.exceptions.ProductNotFoundException;
+import cannelo.marques.interdisciplinar.interdisciplinar.exceptions.UserNotFoundException;
 
 @Service
 public class UserService {
-
-    private final UserProductRepository repository;
-    private final UserRepository UserRepository;
+    private final UserRepository repository;
+    private final ConsumeMetricsService consumeMetricsService;
+    private final RegistryUserService registryUserService;
     private final ProductRepository productRepository;
 
-    public UserService(UserProductRepository repository, UserRepository UserRepository, ProductRepository productRepository){
+    public UserService(UserRepository repository, ConsumeMetricsService consumeMetricsService, RegistryUserService registryUserService,ProductRepository productRepository){
         this.repository = repository;
-        this.UserRepository = UserRepository;
+        this.consumeMetricsService = consumeMetricsService;
+        this.registryUserService = registryUserService;
         this.productRepository = productRepository;
     }
 
-    public BigDecimal calculateConsumption(UserProduct userProduct,Function<UserProduct, BigDecimal> hoursProvider) {
-        BigDecimal hours = hoursProvider.apply(userProduct);
+    public void addProduct(ProductDTO productDataRaw, int user_id){
+        Objects.requireNonNull(productDataRaw);
+        Objects.requireNonNull(user_id);
 
-        if (userProduct.getProduct() == null ||
-            userProduct.getProduct().getAvgPowerW() == null ||
-            hours == null) {
-            return BigDecimal.ZERO;
+        Optional<User> userOptional = getUser(user_id);
+
+        User user = userOptional.get();
+
+        Product product = productRepository
+            .findById(productDataRaw.registryId())
+            .orElseThrow(() -> new ProductNotFoundException("Product not found"));
+
+        RegistryUserProduct registryUserProduct = registryUserService.createRegistry(user, product, user_id, null, null);
+    }
+
+    public void removeProduct(ProductDTO productDTO, int user_id){
+        Objects.requireNonNull(productDTO);
+
+        Optional<User> userOptional = getUser(user_id);
+
+        User user = userOptional.get();
+
+        Optional<RegistryUserProduct> registryProduct = getProduct(productDTO.registryId(), user);
+
+        RegistryUserProduct userProduct = registryProduct.orElseThrow(() ->
+            new ProductNotFoundException("Product not found in user registry: " + productDTO.registryId())
+        );
+    }
+
+    public Optional<RegistryUserProduct> getProduct(UUID RegistryId, User user){
+        List<RegistryUserProduct> registry = findAllProductrs(user);
+        for(RegistryUserProduct product : registry){
+            if(product.getId().equals(RegistryId)){
+                return Optional.of(product);
+            }
         }
+        return Optional.empty();
+    }
 
-        return userProduct.getProduct()
-                .getAvgPowerW()
-                .multiply(hours)
-                .divide(BigDecimal.valueOf(1000));
+    public List<RegistryUserProduct> findAllProductrs(User user){
+        List<RegistryUserProduct> registry =  consumeMetricsService.getProductRegistry(user);
+        Objects.requireNonNull(registry);
+        return registry;
     }
 
     public boolean userExists(User user){
         return Optional.ofNullable(user)
                 .map(User::getId)
-                .map(UserRepository::existsById)
+                .map(repository::existsById)
                 .orElse(false);
+    }
+
+    public Optional<User> getUser(int user_id) throws UserNotFoundException{
+        Objects.requireNonNull(user_id);
+
+        Optional<User> user = repository.findById(user_id);
+        if (user == null || user.isEmpty()){
+            throw new UserNotFoundException("id not foud in database");
+        }
+        return user;
     }
 }
