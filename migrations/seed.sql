@@ -1,6 +1,6 @@
 -- migrations/seed.sql
--- Script de carga inicial para dados de teste (User + UserProduct)
--- Compatível mesmo se a tabela userproduct não tiver constraint UNIQUE pré-existente.
+-- Script de carga inicial para dados de teste (User + RegistryUserProduct)
+-- Compatível mesmo se a tabela registry_user_product não tiver constraint UNIQUE pré-existente.
 
 BEGIN;
 
@@ -18,14 +18,14 @@ SELECT setval(pg_get_serial_sequence('users', 'id'), COALESCE((SELECT MAX(id) FR
 -- ---------------------------------------------------------------------------
 -- 2. Garante o Índice Único (opcional, mas recomendado para integridade)
 -- ---------------------------------------------------------------------------
-CREATE UNIQUE INDEX IF NOT EXISTS uk_userproduct_user_product
-ON userproduct (user_id, product_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uk_registry_user_product_user_product
+ON registry_user_product (user_id, product_id);
 
 -- ---------------------------------------------------------------------------
 -- 3. Vincula o Usuário aos Produtos Existentes
 -- ---------------------------------------------------------------------------
 -- Usa WHERE NOT EXISTS para garantir idempotência mesmo sem depender do ON CONFLICT
-INSERT INTO userproduct (id, user_id, product_id, quantity, avg_active_hours, hours_standby)
+INSERT INTO registry_user_product (id, user_id, product_id, quantity, avg_active_hours, hours_standby)
 SELECT
     gen_random_uuid() AS id,
     1 AS user_id,
@@ -54,7 +54,7 @@ FROM (
     LIMIT 5
 ) p
 WHERE NOT EXISTS (
-    SELECT 1 FROM userproduct up
+    SELECT 1 FROM registry_user_product up
     WHERE up.user_id = 1 AND up.product_id = p.id
 );
 
