@@ -13,8 +13,8 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "userproduct")
-public class UserProduct {
+@Table(name = "registry_user_product")
+public class RegistryUserProduct {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
@@ -35,7 +35,16 @@ public class UserProduct {
     @Column(name = "hours_standby")
     private BigDecimal hoursStandby;
 
-    public UserProduct() {
+    public RegistryUserProduct() {
+    }
+
+    public RegistryUserProduct(UUID id, User user, int quantity, BigDecimal avgActiveHours, BigDecimal hoursStandby, Product product) {
+        this.id = id;
+        this.user = user;
+        this.quantity = quantity;
+        this.avgActiveHours = avgActiveHours;
+        this.hoursStandby = hoursStandby;
+        this.product = product;
     }
 
     public UUID getId() {

@@ -10,7 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 
-import cannelo.marques.interdisciplinar.interdisciplinar.Models.UserProduct;
+import cannelo.marques.interdisciplinar.interdisciplinar.Models.RegistryUserProduct;
 
 @Entity
 @Table(name = "users")
@@ -24,7 +24,7 @@ public class User {
     private String name;
 
     @OneToMany(mappedBy = "user")
-    private List<UserProduct> userProducts;
+    private List<RegistryUserProduct> registryUserProducts;
 
     public User(){
     }
@@ -44,6 +44,14 @@ public class User {
 
     public String getName(){
         return name;
+    }
+
+    public void addRegistryUserProduct(RegistryUserProduct product){
+        this.registryUserProducts.add(product);
+    }
+
+    public void removeRegistryUserProduct(RegistryUserProduct product){
+        this.registryUserProducts.remove(this.registryUserProducts.indexOf(product.getId()));
     }
 
     @Override

@@ -6,7 +6,7 @@ import java.util.Optional;
 
 import cannelo.marques.interdisciplinar.interdisciplinar.Models.Product;
 import cannelo.marques.interdisciplinar.interdisciplinar.Models.User;
-import cannelo.marques.interdisciplinar.interdisciplinar.Models.UserProduct;
+import cannelo.marques.interdisciplinar.interdisciplinar.Models.RegistryUserProduct;
 
 public interface MetricsService<Client extends User , OperationValue extends Number> {
     Optional<BigDecimal> calculateEnergyByUser(Client user);
@@ -21,7 +21,7 @@ public interface MetricsService<Client extends User , OperationValue extends Num
 
     Optional<BigDecimal> calculateStandbyConsumesForProduct(Client user, Product product);
 
-    List<UserProduct> getProductRegistry(Client user);
+    List<RegistryUserProduct> getProductRegistry(Client user);
 
     Optional<BigDecimal> avg(OperationValue value, List<?> arry);
 }
