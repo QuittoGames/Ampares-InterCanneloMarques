@@ -1,7 +1,6 @@
 package cannelo.marques.interdisciplinar.interdisciplinar.Services;
 
 import org.springframework.stereotype.Service;
-import java.lang.Math;
 
 import cannelo.marques.interdisciplinar.interdisciplinar.Repository.ProductRepository;
 
@@ -12,5 +11,4 @@ public class ProductService {
     public ProductService(ProductRepository repository){
         this.repository = repository;
     }
-
 }
