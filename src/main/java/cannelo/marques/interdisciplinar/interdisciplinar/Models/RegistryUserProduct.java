@@ -3,6 +3,7 @@ package cannelo.marques.interdisciplinar.interdisciplinar.Models;
 import java.math.BigDecimal;
 import java.util.UUID;
 
+import cannelo.marques.interdisciplinar.interdisciplinar.Models.interfaces.HoursProvider;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -75,6 +76,7 @@ public class RegistryUserProduct {
         this.quantity = quantity;
     }
 
+    @HoursProvider
     public BigDecimal getAvgActiveHours() {
         return avgActiveHours;
     }
@@ -83,6 +85,7 @@ public class RegistryUserProduct {
         this.avgActiveHours = avgActiveHours;
     }
 
+    @HoursProvider
     public BigDecimal getHoursStandby() {
         return hoursStandby;
     }

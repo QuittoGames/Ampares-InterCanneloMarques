@@ -10,8 +10,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 
-import cannelo.marques.interdisciplinar.interdisciplinar.Models.RegistryUserProduct;
-
 @Entity
 @Table(name = "users")
 public class User {

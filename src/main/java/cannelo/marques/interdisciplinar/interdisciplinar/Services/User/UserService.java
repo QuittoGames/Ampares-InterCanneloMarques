@@ -2,6 +2,8 @@ package cannelo.marques.interdisciplinar.interdisciplinar.Services.User;
 
 import cannelo.marques.interdisciplinar.interdisciplinar.Repository.ProductRepository;
 import cannelo.marques.interdisciplinar.interdisciplinar.Repository.RegistryUserProductRepository;
+
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -14,9 +16,11 @@ import cannelo.marques.interdisciplinar.interdisciplinar.Models.Product;
 import cannelo.marques.interdisciplinar.interdisciplinar.Models.User;
 import cannelo.marques.interdisciplinar.interdisciplinar.Models.RegistryUserProduct;
 import cannelo.marques.interdisciplinar.interdisciplinar.Repository.UserRepository;
+import cannelo.marques.interdisciplinar.interdisciplinar.Services.Consumption.ConsumptionCalculator;
 import cannelo.marques.interdisciplinar.interdisciplinar.Services.Registry.RegistryUserService;
 import cannelo.marques.interdisciplinar.interdisciplinar.exceptions.ProductNotFoundException;
 import cannelo.marques.interdisciplinar.interdisciplinar.exceptions.UserNotFoundException;
+import tools.jackson.databind.exc.MismatchedInputException;
 
 @Service
 public class UserService {
@@ -32,7 +36,7 @@ public class UserService {
         this.productRepository = productRepository;
     }
 
-    public void addProduct(ProductDTO productDataRaw, int user_id){
+    public void addProduct(ProductDTO productDataRaw, int user_id) throws MismatchedInputException{
         Objects.requireNonNull(productDataRaw);
         Objects.requireNonNull(user_id);
 
@@ -44,7 +48,11 @@ public class UserService {
             .findById(productDataRaw.registryId())
             .orElseThrow(() -> new ProductNotFoundException("Product not found"));
 
-        RegistryUserProduct registryUserProduct = registryUserService.createRegistry(user, product, user_id, null, null);
+        int quantity = productDataRaw.quantity() == 0
+            ? 1
+            : productDataRaw.quantity() ;
+
+        RegistryUserProduct registryUserProduct = registryUserService.createRegistry(user, product,quantity,null,null);
     }
 
     public void removeProduct(ProductDTO productDTO, int user_id){

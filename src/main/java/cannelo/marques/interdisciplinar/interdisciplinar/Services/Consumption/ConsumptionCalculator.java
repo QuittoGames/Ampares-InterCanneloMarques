@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.function.Function;
 
 import cannelo.marques.interdisciplinar.interdisciplinar.Models.RegistryUserProduct;
+import cannelo.marques.interdisciplinar.interdisciplinar.Models.interfaces.HoursProvider;
 
 /**
  * Função pura de cálculo de consumo energético de um registro

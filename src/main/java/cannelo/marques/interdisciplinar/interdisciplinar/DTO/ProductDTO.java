@@ -4,7 +4,8 @@ import java.util.UUID;
 
 public record ProductDTO(
     UUID registryId,
-    String name
+    String name,
+    int quantity
 ) {
 
 }
