@@ -1,0 +1,30 @@
+{
+  "project": "Ampares-InterCanneloMarques",
+  "version": "1.0.0",
+  "created_at": "2026-08-31T21:28:00Z",
+  "owner": "Quitto",
+  "policies": {
+    "autonomy_level": "L3",
+    "scope_protection": "strict",
+    "forbidden_paths_global": [".env", "**/.env", "**/secrets.*", "**/credentials.*"],
+    "validation_required": true,
+    "atomic_writes": true
+  },
+  "groups": {
+    "DOC": {
+      "purpose": "Manter docs/doc.md profissional e completo enquanto Quitto escreve codigo",
+      "allowed_paths": ["docs/"],
+      "forbidden_paths": ["src/", "migrations/", "pom.xml", ".env"]
+    },
+    "SWG": {
+      "purpose": "Adicionar Swagger UI ao Spring Boot sem afetar codigo de negocio",
+      "allowed_paths": [
+        "pom.xml",
+        "src/main/java/**/config/",
+        "src/main/resources/application.properties",
+        "src/main/java/**/Controllers/"
+      ],
+      "forbidden_paths": [".env", "docs/", "migrations/", "src/test/"]
+    }
+  }
+}

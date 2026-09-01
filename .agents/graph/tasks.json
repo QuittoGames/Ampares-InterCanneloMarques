@@ -1,0 +1,237 @@
+{
+  "version": "1.0.0",
+  "tasks": [
+    {
+      "id": "TASK-DOC-001",
+      "title": "Analisar codigo base completo (classes, atributos, metodos)",
+      "description": "Leitura exaustiva de todas as classes Java para entender o sistema. Insumo direto para doc.md.",
+      "type": "research",
+      "group": "DOC",
+      "status": "completed",
+      "priority": "high",
+      "dependencies": [],
+      "inputs": ["src/main/java/cannelo/marques/interdisciplinar/interdisciplinar/**/*.java"],
+      "outputs": ["mapeamento textual (ja capturado via codebase-explainer + scan-researcher)"],
+      "acceptance_criteria": ["Todas as 27 classes main + 3 test mapeadas"],
+      "verification": ["scan-researcher output"],
+      "role": "agent",
+      "scope": { "allowed_paths": ["src/main/java/", "src/test/java/"], "forbidden_paths": [".env"] },
+      "attempts": 1,
+      "evidence": ["explainer_arquitetura.md", "scan_classes.md"]
+    },
+    {
+      "id": "TASK-DOC-002",
+      "title": "Definir estrutura do docs/doc.md",
+      "description": "Definir as 18 secoes canonicas: Overview, Goals/Non-Goals, Architecture, Modules, Domain Model, Data Flow, Application Flow, APIs, Persistence, Error Handling, Security, Concurrency, External Integrations, Testing Strategy, Deployment, Operational Considerations, Known Limitations, Future Evolution.",
+      "type": "doc",
+      "group": "DOC",
+      "status": "ready",
+      "priority": "high",
+      "dependencies": ["TASK-DOC-001"],
+      "outputs": ["docs/doc.md criado com estrutura completa"],
+      "acceptance_criteria": [
+        "Arquivo docs/doc.md existe",
+        "Tem 18 secoes conforme AGENTS.md",
+        "Overview nao vazio"
+      ],
+      "role": "agent",
+      "scope": { "allowed_paths": ["docs/"], "forbidden_paths": ["src/", ".env"] },
+      "max_attempts": 2
+    },
+    {
+      "id": "TASK-DOC-003",
+      "title": "Documentar Models (User, Product, RegistryUserProduct, interfaces)",
+      "description": "Para cada Model: proposito, tabela, atributos com tipos e anotacoes JPA, construtores, metodos, relacoes, observacoes.",
+      "type": "doc",
+      "group": "DOC",
+      "status": "ready",
+      "priority": "medium",
+      "dependencies": ["TASK-DOC-002"],
+      "outputs": ["Secao Domain Model de docs/doc.md preenchida"],
+      "acceptance_criteria": [
+        "User, Product, RegistryUserProduct documentados",
+        "Tabela x coluna mapeada",
+        "Anotacoes JPA reproduzidas verbatim"
+      ],
+      "role": "agent",
+      "scope": { "allowed_paths": ["docs/"], "forbidden_paths": ["src/"] }
+    },
+    {
+      "id": "TASK-DOC-004",
+      "title": "Documentar Repositories",
+      "description": "Documentar UserRepository, ProductRepository, RegistryUserProductRepository com metodos derivados.",
+      "type": "doc",
+      "group": "DOC",
+      "status": "ready",
+      "priority": "medium",
+      "dependencies": ["TASK-DOC-002"],
+      "role": "agent",
+      "scope": { "allowed_paths": ["docs/"], "forbidden_paths": ["src/"] }
+    },
+    {
+      "id": "TASK-DOC-005",
+      "title": "Documentar Services (Auth, User, Registry, Consumption)",
+      "description": "Documentar todos os services: AuthService, UserService, ConsumeMetricsService, RegistryUserService, ConsumptionCalculator, RegistryCalculator, CookieService, ProductService.",
+      "type": "doc",
+      "group": "DOC",
+      "status": "ready",
+      "priority": "medium",
+      "dependencies": ["TASK-DOC-002"],
+      "role": "agent",
+      "scope": { "allowed_paths": ["docs/"], "forbidden_paths": ["src/"] }
+    },
+    {
+      "id": "TASK-DOC-006",
+      "title": "Documentar Controllers (AuthController, MetricsController)",
+      "description": "Tabela de endpoints, contratos request/response, status codes, exceptions.",
+      "type": "doc",
+      "group": "DOC",
+      "status": "ready",
+      "priority": "medium",
+      "dependencies": ["TASK-DOC-002"],
+      "role": "agent",
+      "scope": { "allowed_paths": ["docs/"], "forbidden_paths": ["src/"] }
+    },
+    {
+      "id": "TASK-DOC-007",
+      "title": "Documentar DTOs e Exceptions",
+      "description": "5 DTOs + 3 exceptions customizadas. Tipos, campos, anotacoes de validacao.",
+      "type": "doc",
+      "group": "DOC",
+      "status": "ready",
+      "priority": "medium",
+      "dependencies": ["TASK-DOC-002"],
+      "role": "agent",
+      "scope": { "allowed_paths": ["docs/"], "forbidden_paths": ["src/"] }
+    },
+    {
+      "id": "TASK-DOC-008",
+      "title": "Documentar formulas matematicas (referencia docs/data_normalizate.md)",
+      "description": "E = sum(P_i * H_i) / 1000, H_eq = 1000*E/P, H_dia = H/365, modelo multi-modo com 8760 h/ano.",
+      "type": "doc",
+      "group": "DOC",
+      "status": "ready",
+      "priority": "low",
+      "dependencies": ["TASK-DOC-002"],
+      "role": "agent",
+      "scope": { "allowed_paths": ["docs/"], "forbidden_paths": ["src/"] }
+    },
+    {
+      "id": "TASK-DOC-009",
+      "title": "Documentar schema PostgreSQL completo",
+      "description": "DDL das 3 tabelas, migrations, indices, constraints, ER conceitual.",
+      "type": "doc",
+      "group": "DOC",
+      "status": "ready",
+      "priority": "low",
+      "dependencies": ["TASK-DOC-002"],
+      "role": "agent",
+      "scope": { "allowed_paths": ["docs/"], "forbidden_paths": ["src/"] }
+    },
+    {
+      "id": "TASK-SWG-001",
+      "title": "Adicionar dependencia springdoc-openapi-starter-webmvc-ui no pom.xml",
+      "description": "Adicionar dependencia springdoc-openapi. Verificar compatibilidade com Spring Boot 4.1.1.",
+      "type": "build",
+      "group": "SWG",
+      "status": "completed",
+      "priority": "high",
+      "dependencies": [],
+      "outputs": ["pom.xml modificado"],
+      "acceptance_criteria": [
+        "Dependencia adicionada no pom.xml",
+        "Versao compativel com Boot 4.1.1",
+        "Nenhuma alteracao em logica de negocio"
+      ],
+      "role": "agent",
+      "scope": {
+        "allowed_paths": ["pom.xml"],
+        "forbidden_paths": ["src/", ".env", "migrations/", "docs/"]
+      },
+      "evidence": [".agents/graph/evidence/TASK-SWG-005/build.log"],
+      "notes": "Versao utilizada: 3.1.0 (build contra Spring Boot 4.1.0; compativel com 4.1.1). Validada via context7 MCP contra documentacao oficial springdoc-openapi v3.x."
+    },
+    {
+      "id": "TASK-SWG-002",
+      "title": "Criar classe de configuracao OpenAPI",
+      "description": "Criar OpenApiConfig.java em src/main/java/.../config/ com metadados (titulo, descricao, versao, contato).",
+      "type": "build",
+      "group": "SWG",
+      "status": "completed",
+      "priority": "high",
+      "dependencies": ["TASK-SWG-001"],
+      "outputs": ["src/main/java/.../config/OpenApiConfig.java"],
+      "acceptance_criteria": [
+        "Classe @Configuration presente",
+        "Bean OpenAPI customizado",
+        "Sem credenciais hardcoded"
+      ],
+      "role": "agent",
+      "scope": {
+        "allowed_paths": ["src/main/java/cannelo/marques/interdisciplinar/interdisciplinar/config/"],
+        "forbidden_paths": [".env"]
+      },
+      "evidence": [".agents/graph/evidence/TASK-SWG-005/build.log", ".agents/graph/evidence/TASK-SWG-006/no-credentials.txt"]
+    },
+    {
+      "id": "TASK-SWG-003",
+      "title": "Adicionar anotacoes Swagger nos controllers (nao-intrusivo)",
+      "description": "@Tag, @Operation, @ApiResponse nos controllers. Nenhuma mudanca em logica.",
+      "type": "build",
+      "group": "SWG",
+      "status": "completed",
+      "priority": "medium",
+      "dependencies": ["TASK-SWG-002"],
+      "role": "agent",
+      "scope": {
+        "allowed_paths": ["src/main/java/cannelo/marques/interdisciplinar/interdisciplinar/Controllers/"],
+        "forbidden_paths": [".env"]
+      },
+      "evidence": [".agents/graph/evidence/TASK-SWG-005/build.log"],
+      "notes": "AuthController: @Tag(class), @Operation+@ApiResponses(login). MetricsController: @Tag(class), @Operation em 5 endpoints (average-energy, total-energy, most-consumer-product, standby-consumption-avg, standby-consumption-by-product). Apenas imports e anotações; zero alteracao em logica."
+    },
+    {
+      "id": "TASK-SWG-004",
+      "title": "Configurar application.properties para Swagger UI",
+      "description": "Adicionar chaves springdoc.* se necessario. Nao tocar em chaves existentes.",
+      "type": "build",
+      "group": "SWG",
+      "status": "completed",
+      "priority": "medium",
+      "dependencies": ["TASK-SWG-003"],
+      "scope": {
+        "allowed_paths": ["src/main/resources/application.properties"],
+        "forbidden_paths": [".env"]
+      },
+      "evidence": [".agents/graph/evidence/TASK-SWG-005/build.log"]
+    },
+    {
+      "id": "TASK-SWG-005",
+      "title": "Validar compilacao com mvn compile",
+      "description": "Rodar mvn compile e garantir exit 0. Sem warnings novos.",
+      "type": "verify",
+      "group": "SWG",
+      "status": "completed",
+      "priority": "high",
+      "dependencies": ["TASK-SWG-004"],
+      "outputs": ["build log em .agents/graph/evidence/TASK-SWG-005/build.log"],
+      "acceptance_criteria": ["BUILD SUCCESS", "exit 0"],
+      "role": "agent",
+      "scope": { "allowed_paths": ["."], "forbidden_paths": [".env"] },
+      "evidence": [".agents/graph/evidence/TASK-SWG-005/build.log"]
+    },
+    {
+      "id": "TASK-SWG-006",
+      "title": "Garantir .env intacto e sem credenciais hardcoded no codigo novo",
+      "description": "Diff do .env antes/depois deve ser vazio. Grep por credenciais no codigo novo deve dar 0 matches.",
+      "type": "verify",
+      "group": "SWG",
+      "status": "completed",
+      "priority": "high",
+      "dependencies": ["TASK-SWG-005"],
+      "role": "agent",
+      "scope": { "allowed_paths": ["."], "forbidden_paths": [] },
+      "evidence": [".agents/graph/evidence/TASK-SWG-006/no-credentials.txt"]
+    }
+  ]
+}

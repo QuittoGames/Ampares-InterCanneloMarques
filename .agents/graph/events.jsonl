@@ -1,0 +1,19 @@
+{"timestamp":"2026-08-31T21:28:00Z","event":"graph.bootstrap","actor":"orchestrator","detail":"Created .agents/graph/ with graph.json, tasks.json, decisions.json"}
+{"timestamp":"2026-08-31T21:28:00Z","event":"adr.created","actor":"orchestrator","decision_id":"ADR-001"}
+{"timestamp":"2026-08-31T21:28:00Z","event":"adr.created","actor":"orchestrator","decision_id":"ADR-002"}
+{"timestamp":"2026-08-31T21:28:00Z","event":"adr.created","actor":"orchestrator","decision_id":"ADR-003"}
+{"timestamp":"2026-08-31T21:28:00Z","event":"task.created","actor":"orchestrator","task_id":"TASK-DOC-001","group":"DOC"}
+{"timestamp":"2026-08-31T21:28:00Z","event":"task.created","actor":"orchestrator","task_id":"TASK-DOC-002","group":"DOC"}
+{"timestamp":"2026-08-31T21:28:00Z","event":"task.created","actor":"orchestrator","task_id":"TASK-DOC-003","group":"DOC"}
+{"timestamp":"2026-08-31T21:28:00Z","event":"task.created","actor":"orchestrator","task_id":"TASK-DOC-004","group":"DOC"}
+{"timestamp":"2026-08-31T21:28:00Z","event":"task.created","actor":"orchestrator","task_id":"TASK-DOC-005","group":"DOC"}
+{"timestamp":"2026-08-31T21:28:00Z","event":"task.created","actor":"orchestrator","task_id":"TASK-DOC-006","group":"DOC"}
+{"timestamp":"2026-08-31T21:28:00Z","event":"task.created","actor":"orchestrator","task_id":"TASK-DOC-007","group":"DOC"}
+{"timestamp":"2026-08-31T21:28:00Z","event":"task.created","actor":"orchestrator","task_id":"TASK-DOC-008","group":"DOC"}
+{"timestamp":"2026-08-31T21:28:00Z","event":"task.created","actor":"orchestrator","task_id":"TASK-DOC-009","group":"DOC"}
+{"timestamp":"2026-08-31T21:28:00Z","event":"task.created","actor":"orchestrator","task_id":"TASK-SWG-001","group":"SWG"}
+{"timestamp":"2026-08-31T21:28:00Z","event":"task.created","actor":"orchestrator","task_id":"TASK-SWG-002","group":"SWG"}
+{"timestamp":"2026-08-31T21:28:00Z","event":"task.created","actor":"orchestrator","task_id":"TASK-SWG-003","group":"SWG"}
+{"timestamp":"2026-08-31T21:28:00Z","event":"task.created","actor":"orchestrator","task_id":"TASK-SWG-004","group":"SWG"}
+{"timestamp":"2026-08-31T21:28:00Z","event":"task.created","actor":"orchestrator","task_id":"TASK-SWG-005","group":"SWG"}
+{"timestamp":"2026-08-31T21:28:00Z","event":"task.created","actor":"orchestrator","task_id":"TASK-SWG-006","group":"SWG"}

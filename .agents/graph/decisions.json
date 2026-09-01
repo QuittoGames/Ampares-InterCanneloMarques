@@ -1,0 +1,53 @@
+{
+  "version": "1.0.0",
+  "decisions": [
+    {
+      "id": "ADR-001",
+      "title": "Orquestracao em 2 grupos paralelos (DOC e SWG)",
+      "status": "accepted",
+      "context": "Quitto esta escrevendo codigo Java Spring Boot em tempo real. Enquanto escreve, ele precisa que (1) docs/doc.md seja mantido e (2) Swagger UI seja adicionado sem conflitar com o codigo que ele escreve.",
+      "decision": "Separar trabalho em 2 grupos: DOC (read-only em src/, write em docs/) e SWG (write aditivo em pom.xml, config, Controllers, application.properties).",
+      "alternatives": [
+        "Sequencial (DOC primeiro, depois SWG) - bloqueia parallelismo",
+        "Tudo em 1 agente - misturaria escopos e risco de takeover"
+      ],
+      "consequences": [
+        "Maximo parallelismo: 2 fronts independentes",
+        "Risco minimizado: cada grupo tem escopo explicito",
+        "Coordenacao via task graph"
+      ],
+      "related_tasks": ["TASK-DOC-001", "TASK-SWG-001"],
+      "created_at": "2026-08-31T21:28:00Z"
+    },
+    {
+      "id": "ADR-002",
+      "title": "Divisao de escopo por paths (allowed/forbidden)",
+      "status": "accepted",
+      "context": "Cada grupo precisa saber exatamente onde pode e onde NAO pode mexer para nao interferir no codigo de Quitto.",
+      "decision": "DOC: allowed = docs/, forbidden = src/, migrations/, pom.xml, .env. SWG: allowed = pom.xml + src/main/java/.../config/ + src/main/resources/application.properties + src/main/java/.../Controllers/ (apenas anotacoes), forbidden = .env, docs/, migrations/, src/test/.",
+      "alternatives": ["Permissao global - perigoso"],
+      "consequences": ["Documentacao fica isolada", "Swagger fica aditivo e isolado", ".env sempre protegido"],
+      "related_tasks": [],
+      "created_at": "2026-08-31T21:28:00Z"
+    },
+    {
+      "id": "ADR-003",
+      "title": "springdoc-openapi-starter-webmvc-ui para Swagger",
+      "status": "accepted",
+      "context": "Projeto usa Spring Boot 4.1.1 (versao de fronteira). Precisa de geracao automatica de OpenAPI 3 + UI.",
+      "decision": "Adotar springdoc-openapi-starter-webmvc-ui. Validar versao compativel com Boot 4.1.1 antes de fixar (pode exigir versao milestone).",
+      "alternatives": [
+        "springfox (deprecado, nao compativel com Boot 3+/4)",
+        "OpenAPI gerado manualmente (alto esforco)"
+      ],
+      "consequences": [
+        "Documentacao auto-gerada via Spring",
+        "Swagger UI em /swagger-ui.html",
+        "OpenAPI JSON em /v3/api-docs",
+        "Requer validacao de compatibilidade"
+      ],
+      "related_tasks": ["TASK-SWG-001", "TASK-SWG-002"],
+      "created_at": "2026-08-31T21:28:00Z"
+    }
+  ]
+}
