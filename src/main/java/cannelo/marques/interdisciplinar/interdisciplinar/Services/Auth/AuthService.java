@@ -8,7 +8,6 @@ import cannelo.marques.interdisciplinar.interdisciplinar.Models.User;
 import cannelo.marques.interdisciplinar.interdisciplinar.Services.Auth.Cookies.CookieService;
 import cannelo.marques.interdisciplinar.interdisciplinar.Services.User.UserService;
 import cannelo.marques.interdisciplinar.interdisciplinar.exceptions.UserNotFoundException;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -34,9 +33,11 @@ public class AuthService{
             throw new UserNotFoundException("User not found with the provided ID");
         }
 
-        Cookie cookie = cookieService.get(request, id);
-        Objects.requireNonNull(cookie);
-
         cookieService.set(response, idString, 60 * 60 * 24 * 7);
+    }
+
+    public void logout(HttpServletResponse response){
+        Objects.requireNonNull(response);
+        cookieService.clear(response);
     }
 }

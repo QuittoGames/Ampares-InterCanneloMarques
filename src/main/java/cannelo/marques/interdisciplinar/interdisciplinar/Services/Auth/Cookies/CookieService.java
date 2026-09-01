@@ -24,6 +24,7 @@ public class CookieService {
 
     public void clear(HttpServletResponse response) {
         Cookie cookie = new Cookie("user_id", "");
+        cookie.setHttpOnly(true);
         cookie.setPath("/");
         cookie.setMaxAge(0);
 

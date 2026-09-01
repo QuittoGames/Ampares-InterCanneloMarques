@@ -1,7 +1,6 @@
 package cannelo.marques.interdisciplinar.interdisciplinar.Controllers;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -48,5 +47,16 @@ public class AuthController {
         } catch (UserNotFoundException e) {
             return ResponseEntity.notFound().build();
         }
+    }
+
+    @Operation(
+        summary = "Limpa o cookie de sessão",
+        description = "Remove o cookie HttpOnly user_id usado pela sessão do frontend."
+    )
+    @ApiResponse(responseCode = "200", description = "Sessão limpa com sucesso")
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(HttpServletResponse response){
+        authService.logout(response);
+        return ResponseEntity.ok().build();
     }
 }

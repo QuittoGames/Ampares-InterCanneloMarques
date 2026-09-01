@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ampares - Consumo</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <main>
+        <h1>Ampares - Consumo de produtos</h1>
+
+        <section id="login-section">
+            <h2>Login</h2>
+            <form id="login-form">
+                <label for="user-id">ID do usuário</label>
+                <input id="user-id" name="userId" type="number" min="1" placeholder="Ex: 1" required>
+                <button type="submit">Entrar</button>
+            </form>
+            <p id="login-message" class="message"></p>
+        </section>
+
+        <section id="registry-section" hidden>
+            <div class="top-line">
+                <h2>Registrar produto em uso</h2>
+                <button id="logout-button" type="button">Limpar cookie da sessão</button>
+            </div>
+
+            <p>Usuário logado: <strong id="current-user-id"></strong></p>
+
+            <form id="registry-form">
+                <label for="product-select">Produto cadastrado</label>
+                <select id="product-select" name="productId">
+                    <option value="">Carregando produtos...</option>
+                </select>
+
+                <label for="manual-product-id">Ou informe o ID do produto manualmente</label>
+                <input id="manual-product-id" name="manualProductId" type="text" placeholder="UUID do produto">
+
+                <div class="grid">
+                    <div>
+                        <label for="quantity">Quantidade</label>
+                        <input id="quantity" name="quantity" type="number" min="1" value="1" required>
+                    </div>
+                    <div>
+                        <label for="avg-active-hours">Horas ativas por dia</label>
+                        <input id="avg-active-hours" name="avgActiveHours" type="number" min="0" step="0.1" value="4" required>
+                    </div>
+                    <div>
+                        <label for="hours-standby">Horas em standby por dia (opcional)</label>
+                        <input id="hours-standby" name="hoursStandby" type="number" min="0" step="0.1" placeholder="Deixe vazio para calcular">
+                    </div>
+                </div>
+
+                <button type="submit">Registrar uso</button>
+            </form>
+
+            <p id="registry-message" class="message"></p>
+
+            <hr>
+
+            <h2>Resultado</h2>
+            <button id="calculate-button" type="button">Calcular resultado</button>
+            <div id="results" class="results">
+                <p>Nenhum resultado calculado ainda.</p>
+            </div>
+        </section>
+    </main>
+
+    <script src="/app.js"></script>
+</body>
+</html>

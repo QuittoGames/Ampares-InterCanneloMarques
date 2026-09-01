@@ -63,9 +63,9 @@
 			<artifactId>spring-boot-starter-webservices</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>org.aspectj</groupId>
-			<artifactId>aspectjweaver</artifactId>
-		</dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aspectj</artifactId>
+        </dependency>
 
 		<dependency>
 			<groupId>org.springdoc</groupId>
