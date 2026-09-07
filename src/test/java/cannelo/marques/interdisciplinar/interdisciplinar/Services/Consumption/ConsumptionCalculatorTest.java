@@ -1,6 +1,7 @@
 package cannelo.marques.interdisciplinar.interdisciplinar.Services.Consumption;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 import java.math.BigDecimal;
@@ -128,6 +129,64 @@ class ConsumptionCalculatorTest {
         BigDecimal result = ConsumptionCalculator.calculate(
             reg, RegistryUserProduct::getAvgActiveHours);
         assertSame(BigDecimal.ZERO, result);
+    }
+
+    @Test
+    @DisplayName("calculateDailyActiveHours: 1000W × 1460kWh/ano → 4.0000 h/dia (bate com seed.sql)")
+    void dailyActiveHours_altaPotencia_bateComSeed() {
+        BigDecimal result = ConsumptionCalculator.calculateDailyActiveHours(
+            new BigDecimal("1000"), new BigDecimal("1460"));
+        assertEquals(0, new BigDecimal("4.0000").compareTo(result));
+    }
+
+    @Test
+    @DisplayName("calculateDailyActiveHours: 200W × 200kWh/ano → 2.7397 h/dia")
+    void dailyActiveHours_mediaPotencia() {
+        BigDecimal result = ConsumptionCalculator.calculateDailyActiveHours(
+            new BigDecimal("200"), new BigDecimal("200"));
+        assertEquals(0, new BigDecimal("2.7397").compareTo(result));
+    }
+
+    @Test
+    @DisplayName("calculateDailyActiveHours: null quando avgPowerW é null")
+    void dailyActiveHours_nullQuandoPotenciaNull() {
+        assertNull(ConsumptionCalculator.calculateDailyActiveHours(
+            null, new BigDecimal("200")));
+    }
+
+    @Test
+    @DisplayName("calculateDailyActiveHours: null quando annualEnergyKwh é null")
+    void dailyActiveHours_nullQuandoEnergiaNull() {
+        assertNull(ConsumptionCalculator.calculateDailyActiveHours(
+            new BigDecimal("200"), null));
+    }
+
+    @Test
+    @DisplayName("calculateDailyActiveHours: null quando potência é zero")
+    void dailyActiveHours_nullQuandoPotenciaZero() {
+        assertNull(ConsumptionCalculator.calculateDailyActiveHours(
+            BigDecimal.ZERO, new BigDecimal("200")));
+    }
+
+    @Test
+    @DisplayName("calculateDailyActiveHours: null quando potência é negativa")
+    void dailyActiveHours_nullQuandoPotenciaNegativa() {
+        assertNull(ConsumptionCalculator.calculateDailyActiveHours(
+            new BigDecimal("-200"), new BigDecimal("200")));
+    }
+
+    @Test
+    @DisplayName("inversa: horas/dia derivadas de P e E reconvertem ao kWh anual original")
+    void dailyActiveHours_eInversa_Consistentes() {
+        BigDecimal hours = ConsumptionCalculator.calculateDailyActiveHours(
+            new BigDecimal("1000"), new BigDecimal("1460"));
+        RegistryUserProduct reg = registryWithProduct(
+            new BigDecimal("1000"), hours);
+        BigDecimal dailyEnergy = ConsumptionCalculator.calculate(
+            reg, RegistryUserProduct::getAvgActiveHours);
+        // 4 h/dia × 1000W / 1000 = 4 kWh/dia → × 365 dias = 1460 kWh/ano
+        BigDecimal yearlyEnergy = dailyEnergy.multiply(new BigDecimal("365"));
+        assertEquals(0, new BigDecimal("1460.0000").compareTo(yearlyEnergy));
     }
 
     // ---- helpers ----

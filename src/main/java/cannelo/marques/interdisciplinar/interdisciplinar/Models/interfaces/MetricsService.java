@@ -9,8 +9,6 @@ import cannelo.marques.interdisciplinar.interdisciplinar.Models.User;
 import cannelo.marques.interdisciplinar.interdisciplinar.Models.RegistryUserProduct;
 
 public interface MetricsService<Client extends User , OperationValue extends Number> {
-    Optional<BigDecimal> calculateEnergyByUser(Client user);
-
     Optional<BigDecimal> calculateAverageEnergyByUser(Client user);
 
     Optional<Product> calculateMostConsumerProduct(Client user);

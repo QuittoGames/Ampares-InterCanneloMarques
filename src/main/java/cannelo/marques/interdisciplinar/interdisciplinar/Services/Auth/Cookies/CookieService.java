@@ -1,5 +1,6 @@
 package cannelo.marques.interdisciplinar.interdisciplinar.Services.Auth.Cookies;
 
+import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -32,8 +33,11 @@ public class CookieService {
     }
 
     public Cookie get(HttpServletRequest request,int id) {
+        Cookie[] cookies = request.getCookies();
+        Objects.requireNonNull(cookies);
+
         try {
-            for(Cookie cookie:request.getCookies()){
+            for(Cookie cookie:cookies){
                 if (id == Integer.valueOf(cookie.getValue())){
                     return cookie;
                 }

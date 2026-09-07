@@ -20,6 +20,7 @@ import cannelo.marques.interdisciplinar.interdisciplinar.Repository.UserReposito
 import cannelo.marques.interdisciplinar.interdisciplinar.Models.interfaces.MetricsService;
 import cannelo.marques.interdisciplinar.interdisciplinar.exceptions.ProductNotFoundException;
 import cannelo.marques.interdisciplinar.interdisciplinar.exceptions.UserNotFoundException;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
@@ -40,19 +41,6 @@ public class MetricsController {
     }
 
     @Operation(
-        summary = "Calcula consumo médio de energia por produto",
-        description = "Retorna a média do consumo anual em kWh dos produtos registrados por um usuário."
-    )
-    @PostMapping("/users/average-energy")
-    public ResponseEntity<BigDecimal> averageEnergyByUser(@RequestBody MetricsByUserDTO dto) {
-        User user = userRepository.findById(dto.userId())
-                .orElseThrow(() -> new UserNotFoundException("User not found: " + dto.userId()));
-
-        Optional<BigDecimal> result = metricsService.calculateAverageEnergyByUser(user);
-        return ResponseEntity.ok(result.orElse(BigDecimal.ZERO));
-    }
-
-    @Operation(
         summary = "Calcula consumo total de energia",
         description = "Retorna a soma do consumo anual em kWh de todos os produtos registrados por um usuário."
     )
@@ -61,7 +49,7 @@ public class MetricsController {
         User user = userRepository.findById(dto.userId())
                 .orElseThrow(() -> new UserNotFoundException("User not found: " + dto.userId()));
 
-        Optional<BigDecimal> result = metricsService.calculateEnergyByUser(user);
+        Optional<BigDecimal> result = metricsService.calculateAverageEnergyByUser(user);
         return ResponseEntity.ok(result.orElse(BigDecimal.ZERO));
     }
 

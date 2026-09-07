@@ -1,6 +1,7 @@
 package cannelo.marques.interdisciplinar.interdisciplinar.Services.Consumption;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.function.Function;
 
 import cannelo.marques.interdisciplinar.interdisciplinar.Models.RegistryUserProduct;
@@ -35,8 +36,17 @@ import cannelo.marques.interdisciplinar.interdisciplinar.Models.RegistryUserProd
  */
 public final class ConsumptionCalculator {
 
-    /** Fator de conversão W → kW. */
+    /** Fator de conversão W → kW (dividir por 1000). */
     private static final BigDecimal W_TO_KW = new BigDecimal("1000");
+
+    /** Fator de conversão kWh → Wh (multiplicar por 1000). */
+    private static final BigDecimal KWH_TO_WH = new BigDecimal("1000");
+
+    /** Dias em um ano (base para converter kWh/ano em horas/dia). */
+    private static final BigDecimal DAYS_PER_YEAR = new BigDecimal("365");
+
+    /** Escala padrão para resultados fracionários de horas/dia. */
+    private static final int HOUR_SCALE = 4;
 
     private ConsumptionCalculator() {
     }
@@ -76,5 +86,45 @@ public final class ConsumptionCalculator {
                 .getAvgPowerW()
                 .multiply(hours)
                 .divide(W_TO_KW);
+    }
+
+    /**
+     * Calcula as horas ativas por dia a partir da potência média (W) e da
+     * energia anual (kWh/ano) de um produto.
+     *
+     * <p>É a <b>inversa</b> de {@link #calculate(...)}: em vez de converter
+     * horas → kWh, reconverte energia em horas/dia:
+     * <pre>
+     *            E_ano (kWh) × 1000
+     * H/dia = ─────────────────────
+     *             P (W) × 365
+     * </pre>
+     *
+     * <p>Nenhum valor é inventado: entrada ausente, potência não positiva ou
+     * cálculo inválido → {@code null} (incapaz de derivar as horas).
+     *
+     * @param avgPowerW       potência média do produto (W)
+     * @param annualEnergyKwh energia anual do produto (kWh/ano)
+     * @return horas ativas por dia (escala 4) ou {@code null} se não calculável
+     */
+    public static BigDecimal calculateDailyActiveHours(
+            BigDecimal avgPowerW,
+            BigDecimal annualEnergyKwh) {
+        if (avgPowerW == null || annualEnergyKwh == null) {
+            return null;
+        }
+        if (avgPowerW.signum() <= 0) {
+            return null;
+        }
+        try {
+            BigDecimal hoursPerYear = annualEnergyKwh
+                    .multiply(KWH_TO_WH)
+                    .divide(avgPowerW, HOUR_SCALE, RoundingMode.HALF_UP);
+            return hoursPerYear
+                    .divide(DAYS_PER_YEAR, HOUR_SCALE, RoundingMode.HALF_UP)
+                    .setScale(HOUR_SCALE, RoundingMode.HALF_UP);
+        } catch (ArithmeticException e) {
+            return null;
+        }
     }
 }

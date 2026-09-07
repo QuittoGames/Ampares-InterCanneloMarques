@@ -78,9 +78,19 @@ public class RegistryUserService{
             resolvedHoursStandby,
             product);
 
-        //Falllback if dont exits the avg value in database
-        if (registry.getHoursStandby() == null){
-            registry.setAvgActiveHours(ConsumptionCalculator.calculate(registry, RegistryUserProduct::getAvgActiveHours));
+        // Fallback: se o banco não tem as horas de uso, deriva a partir do
+        // product usando a fórmula inversa do consumo (energy → horas/dia),
+        // nunca kWh numa coluna de horas. Se P/E forem insuficientes, nada
+        // é inventado — os campos ficam null (persistidos como NULL).
+        if (registry.getHoursStandby() == null) {
+            BigDecimal activeHours = ConsumptionCalculator.calculateDailyActiveHours(
+                    registry.getProduct().getAvgPowerW(),
+                    registry.getProduct().getAnnualEnergyKwh());
+            if (activeHours != null) {
+                registry.setAvgActiveHours(activeHours);
+                registry.setHoursStandby(
+                        RegistryCalculator.computeHoursStandbyPerDay(activeHours));
+            }
         }
 
         return registryRepository.save(registry);

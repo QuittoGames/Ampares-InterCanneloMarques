@@ -1,12 +1,14 @@
+@import url("https://fonts.googleapis.com/css2?family=poppins:wght@300;400;500;600;700;800;900&display=swap");
+
 body {
     display: flex;
     justify-content: center;
+    align-items: center;
     min-height: 100vh;
     box-sizing: border-box;
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 24px;
+    font-family: 'poppins', sans-serif;
     color: #222;
+    background-color: #484848;
 }
 
 main {
@@ -14,9 +16,31 @@ main {
     max-width: 760px;
 }
 
+
+
 h1 {
-    text-align: center;
+    font-size: 65px;
+    text-align:center;
+    color: #bc8c04;
+    padding: 12px;
 }
+
+
+h2 {
+    color: #fee695;
+    border-radius: 10px;
+    font-size: 35px;
+    text-align: center;
+    background: #bc8c04;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    padding: 12px;
+    width: 456px;
+    margin: 16px auto;
+
+}
+
+
+
 
 form {
     display: flex;
@@ -25,12 +49,18 @@ form {
 }
 
 section {
-    border: 1px solid #ddd;
-    padding: 16px;
-    margin-bottom: 16px;
+    border: 1px solid #F3C55B;
+    border-radius: 30px;
+    background: #F3C55B;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    width: 75%;
+    margin: 0 auto;
+    padding: 24px;
+
 }
 
 label {
+    color: #BC8C04;
     display: block;
     width: 100%;
     max-width: 420px;
@@ -41,13 +71,19 @@ label {
 input,
 select,
 button {
-    box-sizing: border-box;
+    font-size: 20px;
+    box-sizing:border-box;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+    border: 1px solid #BC8C04;
     width: 100%;
     max-width: 420px;
     padding: 8px;
 }
 
 button {
+    color: #fee695;
+    background: #BC8C04;
     margin-top: 12px;
     cursor: pointer;
 }

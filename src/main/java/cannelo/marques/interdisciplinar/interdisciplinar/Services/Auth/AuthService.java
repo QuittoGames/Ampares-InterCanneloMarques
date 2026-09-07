@@ -22,14 +22,23 @@ public class AuthService{
         this.userService = userService;
     }
 
-    public void login(String idString, HttpServletRequest request, HttpServletResponse response) throws UserNotFoundException{
+    public void login(String idString, HttpServletRequest request, HttpServletResponse response) throws UserNotFoundException, NumberFormatException{
         Objects.requireNonNull(idString);
         Objects.requireNonNull(request);
         Objects.requireNonNull(response);
 
-        int id = Integer.valueOf(idString);
+        int id;
 
-        if (!userService.userExists(new User(Integer.valueOf(id)))){
+        try {
+            id = Integer.parseInt(idString);
+        } catch (NumberFormatException exception) {
+            NumberFormatException formattedException = new NumberFormatException(
+                    "Invalid user ID: " + idString);
+            formattedException.initCause(exception);
+            throw formattedException;
+        }
+
+        if (!userService.userExists(new User(id))){
             throw new UserNotFoundException("User not found with the provided ID");
         }
 

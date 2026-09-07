@@ -32,31 +32,6 @@ public class ConsumeMetricsService implements MetricsService<User,BigDecimal>{
     }
 
     @Override
-    public Optional<BigDecimal> calculateEnergyByUser(User user){
-        Objects.requireNonNull(user, "User cant be ");
-
-        if (!userRepository.existsById(user.getId())) {
-            throw new IllegalStateException("User not found: " + user.getId());
-        }
-
-        BigDecimal consumeInYear = BigDecimal.ZERO;
-
-        List<RegistryUserProduct> userProductReg = registryRepository.findByUser(user);
-        Optional.of(userProductReg)
-                .filter(reg -> !reg.isEmpty())
-                .orElseThrow(() -> new ProductEmptyException(
-                "User product list cannot be empty"));
-
-        for (RegistryUserProduct up: userProductReg){
-            consumeInYear = consumeInYear.add(
-                ConsumptionCalculator.calculate(up, RegistryUserProduct::getAvgActiveHours)
-            );
-        }
-
-        return Optional.of(consumeInYear);
-    }
-
-    @Override
     public Optional<BigDecimal> calculateAverageEnergyByUser(User user){
         Objects.requireNonNull(user, "User cant be ");
 
