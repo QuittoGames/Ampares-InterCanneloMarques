@@ -36,7 +36,7 @@ DONE: str = "done"
 
 
 def iter_pages(
-    client: "SocrataClient",
+    client: SocrataClient,
     dataset_id: str,
     page_size: int = DEFAULT_PAGE_SIZE,
     start_offset: int = 0,

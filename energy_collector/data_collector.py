@@ -25,6 +25,7 @@ import sys
 import time
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
+from typing import Any
 
 from collector.api_client import RateLimiter, SocrataClient, SocrataError
 from collector.config import (
@@ -38,6 +39,8 @@ from collector.config import (
 from collector.database import close_pool, create_pool, ensure_table
 from collector.normalization import slugify_category
 from collector.services.collection import CollectionReport, CollectionService
+from collector.services.multi_source import MultiSourceCollectionService
+from collector.sources.registry import SOURCES, available_sources
 
 LOG = logging.getLogger("data_collector")
 
@@ -104,6 +107,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--state-file", type=Path, default=Path(STATE_FILE), help="arquivo de retomada"
+    )
+    parser.add_argument(
+        "--source",
+        choices=available_sources(),
+        default=None,
+        help=(
+            "fonte multi-fonte via MultiSourceCollectionService "
+            "(default: pipeline legado ENERGY STAR, sem alteracao)"
+        ),
     )
     return parser
 
@@ -172,6 +184,47 @@ def _log_report(report: CollectionReport, elapsed_s: float) -> None:
     )
 
 
+def _run_multi_source(
+    args: argparse.Namespace, pool: Any, token: str | None
+) -> CollectionReport:
+    """Camada multi-fonte (Strangler Fig, PR 6): roteia por --source.
+
+    Monta a fonte pelo registro (``collector.sources.registry``), varre
+    os datasets descobertos (ou um dataset via --category) e persiste
+    conforme o ``source_type`` do adapter (product vs aggregate).
+    """
+    spec = SOURCES[args.source](token, args.rate)
+    service = MultiSourceCollectionService(pool=pool, page_size=args.page_size)
+    adapter = spec["make_adapter"]()
+
+    if args.category:
+        # --category no multi-source: dataset_id explicito da fonte.
+        return CollectionReport(
+            per_category=[
+                service.collect(
+                    adapter,
+                    dataset_id=args.category,
+                    category=args.category,
+                    limit=args.limit,
+                )
+            ]
+        )
+
+    reports: list[Any] = []
+    with spec["make_client"]() as client:
+        discovered = client.discover()
+    for dataset_id, name in discovered:
+        known = KNOWN_DATASETS.get(dataset_id)
+        known_category = (known or {}).get("category") if known else None
+        category = known_category if known_category else slugify_category(name)
+        reports.append(
+            service.collect(
+                adapter, dataset_id=dataset_id, category=category, limit=args.limit
+            )
+        )
+    return CollectionReport(per_category=sorted(reports, key=lambda r: r.category))
+
+
 def main(argv: list[str] | None = None) -> int:
     """Ponto de entrada do coletor. 0 = sucesso; 2 = uso; 1 = falha."""
     setup_logging()
@@ -200,7 +253,7 @@ def main(argv: list[str] | None = None) -> int:
         args.rate,
     )
     limiter = RateLimiter(rate_per_sec=args.rate)
-    make_client = lambda: SocrataClient(app_token=token, rate_limiter=limiter)  # noqa: E731
+    make_client = lambda: SocrataClient(app_token=token, rate_limiter=limiter)
 
     try:
         pool = create_pool(config, max_size=args.db_workers + 2)
@@ -211,6 +264,15 @@ def main(argv: list[str] | None = None) -> int:
     started = time.monotonic()
     try:
         ensure_table(pool)
+
+        # Strangler Fig (PR 6, D8=A): --source ativa o pipeline
+        # multi-fonte; sem a flag, o caminho legado ENERGY STAR roda
+        # INALTERADO (CollectionService + SocrataClient).
+        if args.source:
+            report = _run_multi_source(args, pool, token)
+            _log_report(report, time.monotonic() - started)
+            return 0 if report.totals.status != "partial" else 1
+
         service = CollectionService(
             make_client=make_client,
             pool=pool,
@@ -240,8 +302,8 @@ def main(argv: list[str] | None = None) -> int:
     except KeyboardInterrupt:
         LOG.warning("Interrompido pelo usuario — use --resume para continuar")
         return 130
-    except Exception as exc:  # noqa: BLE001 - guarda final, nunca sai em silencio
-        LOG.exception("Erro inesperado: %s", exc)
+    except Exception:
+        LOG.exception("Erro inesperado")
         return 1
     finally:
         close_pool(pool)

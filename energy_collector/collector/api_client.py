@@ -24,7 +24,7 @@ import json
 import logging
 import threading
 import time
-from typing import Any
+from typing import Any, Self
 
 import requests
 
@@ -99,7 +99,7 @@ class SocrataClient:
     # ------------------------------------------------------------------ #
     # Context manager
     # ------------------------------------------------------------------ #
-    def __enter__(self) -> "SocrataClient":
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(self, *exc_info: object) -> None:
@@ -109,7 +109,7 @@ class SocrataClient:
         """Fecha a sessao HTTP interna."""
         try:
             self._session.close()
-        except Exception:  # noqa: BLE001 - fechamento nunca quebra o caller
+        except Exception:
             logger.debug("Falha ao fechar sessao HTTP", exc_info=True)
 
     # ------------------------------------------------------------------ #

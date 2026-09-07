@@ -161,7 +161,7 @@ class DbConfig:
         )
 
     @classmethod
-    def from_url(cls, url: str) -> "DbConfig":
+    def from_url(cls, url: str) -> DbConfig:
         """Constroi a config a partir de uma ``DATABASE_URL`` completa.
 
         A senha pode vir percent-encoded na URI; aqui ela e decodificada
@@ -187,7 +187,7 @@ class DbConfig:
     # Fabrica principal: .env do projeto pai
     # ------------------------------------------------------------------ #
     @classmethod
-    def from_env(cls, path: Path = DEFAULT_ENV_PATH) -> "DbConfig":
+    def from_env(cls, path: Path = DEFAULT_ENV_PATH) -> DbConfig:
         """Constroi a configuracao a partir do .env do projeto pai.
 
         Ordem de precedencia:

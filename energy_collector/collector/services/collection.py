@@ -25,10 +25,11 @@ from __future__ import annotations
 import logging
 import queue
 import threading
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from ..api_client import SocrataClient, SocrataError
 from ..config import KNOWN_DATASETS, STATE_FILE
@@ -95,7 +96,7 @@ class CollectionService:
     def __init__(
         self,
         make_client: Callable[[], SocrataClient],
-        pool: "ConnectionPool",
+        pool: ConnectionPool,
         datasets: dict[str, str] | None = None,
         state_path: str | Path = STATE_FILE,
         page_size: int = DEFAULT_PAGE_SIZE,
@@ -136,7 +137,7 @@ class CollectionService:
     # ------------------------------------------------------------------ #
     def _process_page(
         self, dataset_id: str, category: str, records: list[dict[str, Any]]
-    ) -> tuple[list["Product"], int]:
+    ) -> tuple[list[Product], int]:
         """Normaliza + valida uma pagina; retorna (produtos, descartados)."""
         products: list[Product] = []
         discarded = 0
@@ -308,10 +309,8 @@ class CollectionService:
             except SocrataError as exc:
                 logger.error("[%s] %s — fetch falhou: %s", dataset_id, category, exc)
                 rep.status = "failed"
-            except Exception as exc:  # noqa: BLE001 - isola o dataset
-                logger.exception(
-                    "[%s] %s — erro inesperado: %s", dataset_id, category, exc
-                )
+            except Exception:
+                logger.exception("[%s] %s — erro inesperado", dataset_id, category)
                 rep.status = "failed"
             finally:
                 if client is not None:
@@ -338,7 +337,7 @@ class CollectionService:
                         products, discarded = self._process_page(
                             dataset_id, category, page
                         )
-                    except Exception:  # noqa: BLE001 - isola a pagina
+                    except Exception:
                         logger.exception(
                             "[%s] normalizacao falhou (offset=%d); pagina isolada",
                             dataset_id,
@@ -389,7 +388,7 @@ class CollectionService:
         self,
         dataset_id: str,
         offset: int,
-        products: list["Product"],
+        products: list[Product],
         rep: CategoryReport,
         stats_lock: threading.Lock | None = None,
     ) -> None:

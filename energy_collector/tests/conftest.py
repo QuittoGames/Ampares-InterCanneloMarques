@@ -40,8 +40,13 @@ def make_product(
     subcategory: str = "Geladeira",
     power: Decimal | None = None,
     annual: Decimal | None = None,
+    standby: Decimal | None = None,
+    source: str = SOURCE_NAME,
     source_id: str | None = "SRC-1",
     dataset_category: str | None = None,
+    dataset_id: str | None = None,
+    is_generic: bool = False,
+    label_class: str | None = None,
 ) -> Product:
     """Constroi um ``Product`` direto pelo contrato publico do dataclass."""
     return Product(
@@ -52,9 +57,13 @@ def make_product(
         subcategory=subcategory,
         avg_power_w=power,
         annual_energy_kwh=annual,
-        source=SOURCE_NAME,
+        standby_power_w=standby,
+        source=source,
         source_id=source_id,
         dataset_category=dataset_category,
+        dataset_id=dataset_id,
+        is_generic=is_generic,
+        label_class=label_class,
     )
 
 

@@ -25,7 +25,12 @@ import uuid
 from dataclasses import dataclass
 from decimal import Decimal
 
-#: Nome canonico da fonte (componente fixo da chave deterministica).
+#: Nome canonico da fonte (legacy: usado por testes e como default).
+#: **Multi-fonte (PR 1+)**: a chave deterministica passa a usar
+#: ``self.source`` (atributo de instancia) em vez deste literal, mas
+#: o valor continua sendo ``"ENERGY STAR"`` para preservar os UUIDs
+#: existentes BIT-A-BIT. Novas fontes (WattSimple, INMETRO, IEA)
+#: injetam seus proprios nomes via :class:`Product.source`.
 SOURCE_NAME: str = "ENERGY STAR"
 
 #: Limites do contrato da tabela ``product`` (espelham o DDL/JPA).
@@ -73,6 +78,11 @@ class Product:
     source_id: str | None
     dataset_category: str | None = None
     dataset_id: str | None = None
+    is_generic: bool = False
+    #: Classe de etiqueta ENCE (``"A"``, ``"B"``, ... ``"G"``) quando a
+    #: fonte declara (INMETRO). So em memoria: vai para a tabela auxiliar
+    #: ``energy_label_class`` (PR 2), NUNCA no INSERT da tabela ``product``.
+    label_class: str | None = None
 
     # ------------------------------------------------------------------ #
     # Identidade deterministica
@@ -80,12 +90,20 @@ class Product:
     def dedup_key(self) -> str:
         """Chave estavel: ``source_id`` vence; fallback usa o slug ORIGINAL
         do dataset (``dataset_category``), nao a taxonomia global — assim a
-        identidade do produto sobrevive a remapeamentos de categoria."""
+        identidade do produto sobrevive a remapeamentos de categoria.
+
+        **Multi-fonte (PR 1)**: o prefixo ``self.source`` substitui a
+        constante ``SOURCE_NAME``. Para produtos ENERGY STAR, ``source``
+        continua sendo o literal ``"ENERGY STAR"`` (atribuido em
+        :func:`normalize_record`), de modo que os UUIDs existentes sao
+        preservados bit-a-bit. Fontes novas (WattSimple, INMETRO, IEA)
+        injetam seu proprio ``source`` no :class:`Product`.
+        """
         if self.source_id:
-            return f"{SOURCE_NAME}|{canonical(self.source_id)}"
+            return f"{self.source}|{canonical(self.source_id)}"
         origin = self.dataset_category or self.category
         return (
-            f"{SOURCE_NAME}|{canonical(self.brand)}"
+            f"{self.source}|{canonical(self.brand)}"
             f"|{canonical(self.model)}|{canonical(origin)}"
         )
 
@@ -166,3 +184,44 @@ class NormalizedProduct:
     @property
     def source_id(self) -> str | None:
         return self.product.source_id
+
+
+@dataclass(slots=True)
+class AggregateRecord:
+    """Dado agregado e ANONIMO (PR 5, D6=A) — referencia estatistica.
+
+    NAO e um produto: e um numero agregado por pais/ano (ex.: consumo
+    medio anual de refrigeradores na Franca em 2019, stock de TV por
+    populacao no Japao em 2020). Origem tipica: IEA Household Appliances
+    Database / Energy End-uses (agregados por pais, sem marca/modelo).
+
+    Destino: tabela ``aggregate_reference`` (PR 5) — nunca ``product``.
+
+    * ``record_id`` — uuid5 deterministico sobre
+      ``"{source}|{country}|{year}|{metric}|{appliance}"`` (canonicalizado
+      com :func:`canonical`): re-coletas idempotentes, sem colisao entre
+      combinacoes pais/ano/metrica.
+    * ``appliance`` — opcional (metricas por aparelho); ``None`` para
+      agregados de setor inteiro.
+    * ``value`` — sempre presente: registro sem valor nao faz sentido
+      estatistico e e descartado na origem.
+    """
+
+    source: str
+    country: str
+    ref_year: int
+    metric: str
+    value: Decimal
+    unit: str
+    appliance: str | None = None
+
+    def record_id(self) -> uuid.UUID:
+        """UUID deterministico (uuid5) da combinacao agregada."""
+        key = (
+            f"{self.source}"
+            f"|{canonical(self.country)}"
+            f"|{self.ref_year}"
+            f"|{canonical(self.metric)}"
+            f"|{canonical(self.appliance)}"
+        )
+        return uuid.uuid5(_NAMESPACE, key)

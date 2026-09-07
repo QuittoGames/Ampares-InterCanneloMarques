@@ -90,7 +90,7 @@ STANDBY_RE = re.compile(r"standby|idle", re.IGNORECASE)
 _PREFIX_RE = re.compile(r"energy star certified", re.IGNORECASE)
 
 #: Dias em um ano (base para derivados diarios).
-_DAYS_PER_YEAR = Decimal("365")
+_DAYS_PER_YEAR = Decimal(365)
 
 
 def slugify_category(dataset_name: str) -> str:
@@ -325,7 +325,7 @@ def compute_equivalent_hours_year(
     """
     if avg_power_w is None or annual_energy_kwh is None:
         return None
-    return _safe_divide(Decimal("1000") * annual_energy_kwh, avg_power_w)
+    return _safe_divide(Decimal(1000) * annual_energy_kwh, avg_power_w)
 
 
 def compute_equivalent_hours_year_day(
@@ -377,8 +377,8 @@ def compute_standby_energy_kwh(
         return None
     if days <= 0:
         return None
-    standby_hours_per_day = Decimal("24") - active_hours_per_day
-    return standby_power_w * standby_hours_per_day * days / Decimal("1000")
+    standby_hours_per_day = Decimal(24) - active_hours_per_day
+    return standby_power_w * standby_hours_per_day * days / Decimal(1000)
 
 
 def compute_derived(
@@ -415,7 +415,13 @@ def compute_derived(
 # ---------------------------------------------------------------------------
 
 
-def normalize(raw: dict[str, Any], dataset_id: str, category: str) -> Product | None:
+def normalize(
+    raw: dict[str, Any],
+    dataset_id: str,
+    category: str,
+    *,
+    source: str = SOURCE_NAME,
+) -> Product | None:
     """Normaliza um registro bruto em :class:`Product` (contrato de escrita).
 
     Mantido como a funcao principal do pipeline existente: retorna o
@@ -427,12 +433,18 @@ def normalize(raw: dict[str, Any], dataset_id: str, category: str) -> Product | 
         dataset_id: ID 4x4 de origem (mapeamento verificado quando
             conhecido, heuristica caso contrario).
         category: Categoria logica do dataset (alimenta ``Product.category``).
+        source: Identificador da fonte (atribuido a ``Product.source``).
+            Default ``SOURCE_NAME`` (``"ENERGY STAR"``) preserva
+            bit-a-bit os UUIDs existentes. Fontes novas (WattSimple,
+            INMETRO) passam seu proprio codigo (ex.: ``"WATTSIMPLE"``).
 
     Returns:
         ``Product`` ou ``None`` sem identificacao minima — o chamador
         contabiliza como descartado (com log).
     """
-    record = normalize_record(raw=raw, dataset_id=dataset_id, category=category)
+    record = normalize_record(
+        raw=raw, dataset_id=dataset_id, category=category, source=source
+    )
     return record.product if record is not None else None
 
 
@@ -441,6 +453,7 @@ def normalize_record(
     dataset_id: str,
     category: str,
     *,
+    source: str = SOURCE_NAME,
     tariff_per_kwh: Decimal | None = None,
 ) -> NormalizedProduct | None:
     """Normaliza um registro bruto, separando SOURCE e DERIVED DATA.
@@ -453,6 +466,9 @@ def normalize_record(
         raw: Linha crua do dataset Socrata.
         dataset_id: ID 4x4 de origem.
         category: Categoria logica do dataset.
+        source: Identificador da fonte (atribuido a ``Product.source``).
+            Default ``SOURCE_NAME`` para preservar bit-a-bit os UUIDs
+            do pipeline ENERGY STAR legado.
         tariff_per_kwh: Tarifa (moeda/kWh) explicita para o custo derivado.
             ``None`` (padrao) -> custo derivado fica ``None``.
 
@@ -491,7 +507,7 @@ def normalize_record(
         avg_power_w=raw_power,
         annual_energy_kwh=raw_annual,
         standby_power_w=raw_standby,
-        source=SOURCE_NAME,
+        source=source,  # parametrizado (PR 1+); default = SOURCE_NAME = "ENERGY STAR"
         source_id=source_id,
         dataset_category=category,
         dataset_id=dataset_id,
