@@ -71,7 +71,6 @@ public class RegistryUserService{
         }
 
         RegistryUserProduct registry = new RegistryUserProduct(
-            UUID.randomUUID(),
             user,
             quantity,
             resolvedAvgActiveHours,

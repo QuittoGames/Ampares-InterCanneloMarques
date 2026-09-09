@@ -9,6 +9,10 @@ import cannelo.marques.interdisciplinar.interdisciplinar.Models.User;
 import cannelo.marques.interdisciplinar.interdisciplinar.Models.RegistryUserProduct;
 
 public interface MetricsService<Client extends User , OperationValue extends Number> {
+    /// Soma do consumo anual em kWh de todos os produtos do usuário (sem dividir).
+    Optional<BigDecimal> calculateTotalEnergyByUser(Client user);
+
+    /// Média do consumo anual por produto do usuário.
     Optional<BigDecimal> calculateAverageEnergyByUser(Client user);
 
     Optional<Product> calculateMostConsumerProduct(Client user);

@@ -1,6 +1,7 @@
 package cannelo.marques.interdisciplinar.interdisciplinar.Services.Auth;
 
 import java.util.Objects;
+import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 
@@ -49,4 +50,9 @@ public class AuthService{
         Objects.requireNonNull(response);
         cookieService.clear(response);
     }
+
+    public User register() throws UserNotFoundException {
+        return userService.create().orElseThrow(() ->
+                new UserNotFoundException("Unable to register user"));
+}
 }

@@ -44,6 +44,14 @@ public class User {
         return name;
     }
 
+        public void setName(String name){
+            this.name = name;
+        }
+
+        public void setRegistryUserProducts(List<RegistryUserProduct> registryUserProducts){
+            this.registryUserProducts = registryUserProducts;
+        }
+
     public void addRegistryUserProduct(RegistryUserProduct product){
         this.registryUserProducts.add(product);
     }

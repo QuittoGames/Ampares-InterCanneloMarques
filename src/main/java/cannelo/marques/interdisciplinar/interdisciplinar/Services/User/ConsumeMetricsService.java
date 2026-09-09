@@ -32,6 +32,27 @@ public class ConsumeMetricsService implements MetricsService<User,BigDecimal>{
     }
 
     @Override
+    public Optional<BigDecimal> calculateTotalEnergyByUser(User user){
+        Objects.requireNonNull(user, "User cant be null");
+
+        if (!userRepository.existsById(user.getId())) {
+            throw new IllegalStateException("User not found: " + user.getId());
+        }
+
+        List<RegistryUserProduct> userProductReg = registryRepository.findByUser(user);
+
+        BigDecimal consumeInYear = BigDecimal.ZERO;
+
+        for (RegistryUserProduct up : userProductReg){
+            consumeInYear = consumeInYear.add(
+                ConsumptionCalculator.calculate(up, RegistryUserProduct::getAvgActiveHours)
+            );
+        }
+
+        return Optional.of(consumeInYear);
+    }
+
+    @Override
     public Optional<BigDecimal> calculateAverageEnergyByUser(User user){
         Objects.requireNonNull(user, "User cant be ");
 
@@ -65,9 +86,9 @@ public class ConsumeMetricsService implements MetricsService<User,BigDecimal>{
             .filter(up -> up.getProduct() != null)
             .filter(up -> up.getProduct().getAvgPowerW() != null)
             .max(Comparator.comparing(
-                up -> up.getProduct()
-                    .getAvgPowerW()
-                    .multiply(up.getAvgActiveHours())
+                up -> ConsumptionCalculator.calculate(
+                    up,
+                    RegistryUserProduct::getAvgActiveHours)
             ))
             .map(RegistryUserProduct::getProduct);
 
@@ -87,7 +108,9 @@ public class ConsumeMetricsService implements MetricsService<User,BigDecimal>{
             .filter(up -> up.getAvgActiveHours() != null)
 
             .sorted(Comparator.comparing(
-                up -> up.getProduct().getAvgPowerW().multiply(up.getAvgActiveHours()),
+                up -> ConsumptionCalculator.calculate(
+                    up,
+                    RegistryUserProduct::getAvgActiveHours),
                 Comparator.reverseOrder()))
 
             .map(RegistryUserProduct::getProduct)

@@ -49,6 +49,19 @@ public class MetricsController {
         User user = userRepository.findById(dto.userId())
                 .orElseThrow(() -> new UserNotFoundException("User not found: " + dto.userId()));
 
+        Optional<BigDecimal> result = metricsService.calculateTotalEnergyByUser(user);
+        return ResponseEntity.ok(result.orElse(BigDecimal.ZERO));
+    }
+
+    @Operation(
+        summary = "Calcula consumo médio anual por produto",
+        description = "Retorna a média do consumo anual em kWh entre os produtos registrados por um usuário."
+    )
+    @PostMapping("/users/average-energy")
+    public ResponseEntity<BigDecimal> averageEnergyByUser(@RequestBody MetricsByUserDTO dto) {
+        User user = userRepository.findById(dto.userId())
+                .orElseThrow(() -> new UserNotFoundException("User not found: " + dto.userId()));
+
         Optional<BigDecimal> result = metricsService.calculateAverageEnergyByUser(user);
         return ResponseEntity.ok(result.orElse(BigDecimal.ZERO));
     }
