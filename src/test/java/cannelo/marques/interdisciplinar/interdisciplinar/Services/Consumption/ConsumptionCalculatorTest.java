@@ -54,6 +54,24 @@ class ConsumptionCalculatorTest {
     }
 
     @Test
+    @DisplayName("calculate: multiplica o consumo pela quantidade de unidades")
+    void calculate_consideraQuantidade() {
+        Product product = new Product(
+            UUID.randomUUID(), "Test", "Brand", "Model", "cat", "sub",
+            new BigDecimal("200"), new BigDecimal("100")
+        );
+        RegistryUserProduct reg = new RegistryUserProduct(
+            UUID.randomUUID(), new User(1), 3,
+            new BigDecimal("8"), new BigDecimal("20"), product
+        );
+
+        BigDecimal result = ConsumptionCalculator.calculate(
+            reg, RegistryUserProduct::getAvgActiveHours);
+
+        assertEquals(0, new BigDecimal("4.8000").compareTo(result));
+    }
+
+    @Test
     @DisplayName("calculate: ZERO quando product é null")
     void calculate_zero_quandoProductNull() {
         RegistryUserProduct reg = new RegistryUserProduct(
