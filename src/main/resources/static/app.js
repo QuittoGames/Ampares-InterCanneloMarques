@@ -1,6 +1,7 @@
 const state = {
     userId: localStorage.getItem('amparesUserId') || '',
     products: [],
+    userProducts: [],
     lastProductId: '',
 };
 
@@ -9,6 +10,8 @@ const registrySection = document.getElementById('registry-section');
 const loginForm = document.getElementById('login-form');
 const registryForm = document.getElementById('registry-form');
 const productSelect = document.getElementById('product-select');
+const productSearch = document.getElementById('product-search');
+const userProducts = document.getElementById('user-products');
 const manualProductIdInput = document.getElementById('manual-product-id');
 const currentUserId = document.getElementById('current-user-id');
 const loginMessage = document.getElementById('login-message');
@@ -21,6 +24,7 @@ loginForm.addEventListener('submit', handleLogin);
 registryForm.addEventListener('submit', handleRegistrySubmit);
 calculateButton.addEventListener('click', calculateResults);
 logoutButton.addEventListener('click', clearSession);
+productSearch.addEventListener('input', renderProducts);
 
 if (state.userId) {
     showRegistryScreen();
@@ -52,10 +56,11 @@ async function handleLogin(event) {
 
 async function loadProducts() {
     replaceOptions(productSelect, [{ value: '', text: 'Carregando produtos...' }]);
+    showUserProductsMessage('Carregando seus produtos...');
 
     try {
-        const data = await request('/products?size=1000', { method: 'GET' });
-        state.products = normalizeProducts(data);
+        const globalProducts = await request('/products?size=1000', { method: 'GET' });
+        state.products = normalizeProducts(globalProducts);
         renderProducts();
     } catch (error) {
         state.products = [];
@@ -66,21 +71,89 @@ async function loadProducts() {
             'error'
         );
     }
+
+    await loadUserProducts();
+}
+
+async function loadUserProducts() {
+    try {
+        const data = await request(`/registryUserProducts/user/${encodeURIComponent(state.userId)}`, {
+            method: 'GET',
+        });
+        state.userProducts = Array.isArray(data) ? data : [];
+        renderUserProducts();
+    } catch (error) {
+        state.userProducts = [];
+        showUserProductsMessage('Você ainda não possui produtos registrados.');
+    }
 }
 
 function renderProducts() {
-    if (state.products.length === 0) {
+    const search = productSearch.value.trim().toLocaleLowerCase();
+    const filteredProducts = state.products.filter((product) => {
+        const searchableFields = [
+            product.id,
+            product.name,
+            product.brand,
+            product.model,
+            product.category,
+            product.subcategory,
+        ];
+
+        return searchableFields.some((field) => String(field || '').toLocaleLowerCase().includes(search));
+    });
+
+    if (filteredProducts.length === 0) {
         replaceOptions(productSelect, [{ value: '', text: 'Nenhum produto encontrado' }]);
         return;
     }
 
     replaceOptions(productSelect, [
         { value: '', text: 'Selecione um produto' },
-        ...state.products.map((product) => ({
+        ...filteredProducts.map((product) => ({
             value: product.id,
             text: formatProduct(product),
         })),
     ]);
+}
+
+function renderUserProducts() {
+    if (state.userProducts.length === 0) {
+        showUserProductsMessage('Você ainda não possui produtos registrados.');
+        return;
+    }
+
+    const list = document.createElement('ul');
+    list.className = 'results__list';
+
+    state.userProducts.forEach((registry) => {
+        const item = document.createElement('li');
+        item.className = 'results__item';
+
+        const product = registry.product || {};
+        const details = [
+            formatProduct(product),
+            `Quantidade: ${registry.quantity ?? 0}`,
+            registry.avgActiveHours !== null && registry.avgActiveHours !== undefined
+                ? `Ativo: ${registry.avgActiveHours} h/dia`
+                : '',
+            registry.hoursStandby !== null && registry.hoursStandby !== undefined
+                ? `Standby: ${registry.hoursStandby} h/dia`
+                : '',
+        ].filter(Boolean).join(' · ');
+
+        item.textContent = details;
+        list.appendChild(item);
+    });
+
+    userProducts.replaceChildren(list);
+}
+
+function showUserProductsMessage(text) {
+    const paragraph = document.createElement('p');
+    paragraph.className = 'results__empty';
+    paragraph.textContent = text;
+    userProducts.replaceChildren(paragraph);
 }
 
 async function handleRegistrySubmit(event) {
@@ -96,8 +169,8 @@ async function handleRegistrySubmit(event) {
     }
 
     const payload = {
-        user: absoluteUrl(`/users/${state.userId}`),
-        product: absoluteUrl(`/products/${productId}`),
+        userId: Number(state.userId),
+        productId: productId,
         quantity: numberFromForm(formData, 'quantity'),
         avgActiveHours: numberFromForm(formData, 'avgActiveHours'),
     };
@@ -115,6 +188,7 @@ async function handleRegistrySubmit(event) {
 
         state.lastProductId = productId;
         manualProductIdInput.value = '';
+        await loadUserProducts();
         setMessage(registryMessage, 'Produto registrado. Calculando resultado...', 'success');
         await calculateResults();
     } catch (error) {
@@ -152,6 +226,7 @@ async function calculateResults() {
 
     const settled = await Promise.allSettled(calls.map(([, promise]) => promise));
     const list = document.createElement('ul');
+    list.className = 'results__list';
 
     calls.forEach(([label], index) => {
         list.appendChild(metricListItem(label, settled[index]));
@@ -226,23 +301,35 @@ function formatProduct(product) {
 
 function metricListItem(label, settled) {
     const item = document.createElement('li');
-    const strong = document.createElement('strong');
-    strong.textContent = `${label}: `;
-    item.appendChild(strong);
+    item.className = 'results__item';
+
+    const labelEl = document.createElement('span');
+    labelEl.className = 'results__label';
+    labelEl.textContent = label;
+    item.appendChild(labelEl);
+
+    const valueEl = document.createElement('span');
+    valueEl.className = 'results__value';
 
     if (settled.status === 'rejected') {
-        item.append(`erro (${settled.reason.message})`);
+        valueEl.classList.add('results__error');
+        valueEl.textContent = `erro (${settled.reason.message})`;
+        item.appendChild(valueEl);
         return item;
     }
 
     const value = settled.value;
 
     if (value && typeof value === 'object') {
-        item.append(formatProduct(value));
+        valueEl.classList.add('results__value--accent');
+        valueEl.textContent = formatProduct(value);
+        item.appendChild(valueEl);
         return item;
     }
 
-    item.append(`${value} kWh`);
+    valueEl.classList.add('results__value--accent');
+    valueEl.textContent = `${value} kWh`;
+    item.appendChild(valueEl);
     return item;
 }
 
@@ -300,6 +387,7 @@ async function clearSession() {
 function resetSessionState() {
     state.userId = '';
     state.products = [];
+    state.userProducts = [];
     state.lastProductId = '';
     localStorage.removeItem('amparesUserId');
     loginSection.hidden = false;
@@ -309,11 +397,13 @@ function resetSessionState() {
 
 function showTextResult(text) {
     const paragraph = document.createElement('p');
+    paragraph.className = 'results__empty';
     paragraph.textContent = text;
     results.replaceChildren(paragraph);
 }
 
 function setMessage(element, text, type) {
     element.textContent = text;
-    element.className = `message ${type || ''}`.trim();
+    const base = element.id === 'login-message' ? 'auth__message' : 'message';
+    element.className = type ? `${base} ${base}--${type}` : base;
 }
