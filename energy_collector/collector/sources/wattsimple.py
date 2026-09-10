@@ -8,9 +8,8 @@ tabela ``product``.
 Decisao arquitetural (PR 3 do plano multi-fonte):
 
 * **Transporte isolado**: TODO o acesso a fonte vive em :meth:`WattSimpleClient._fetch_rows`.
-  O formato real do WattSimple ainda e UNKNOWN (sem URL/schema documentado
-  no repo); quando definido, apenas ``_fetch_rows`` muda — normalizacao,
-  chaves e UUIDs permanecem estaveis.
+  O endpoint oficial fornece CSV com ``appliance``, ``category``,
+  ``running_watts``, ``starting_watts`` e ``typical_hours_per_day``.
 * **Identidade deterministica**: ``"WATTSIMPLE|{nome}"`` via uuid5. O
   mesmo aparelho generico gera sempre o mesmo UUID (upsert idempotente);
   nomes canonicos (NFKC/casefold) evitam duplicatas por casing.
@@ -25,6 +24,7 @@ from __future__ import annotations
 import csv
 import io
 import logging
+import requests
 from collections.abc import Iterator
 from decimal import Decimal
 from pathlib import Path
@@ -34,20 +34,29 @@ from ..models import NAME_MAX, TEXT_MAX, Product
 from ..normalization import _to_decimal, _truncate, slugify_category
 from ..taxonomy import resolve_taxonomy
 from .protocol import RawRecord
+from .api_client import ApiDataClient
 
 logger = logging.getLogger(__name__)
 
 #: Codigo estavel desta fonte (chave canonica no pipeline multi-fonte).
 SOURCE_CODE: str = "WATTSIMPLE"
+DATASET_ID: str = "wattsimple_appliance_wattage"
+DATASET_URL: str = "https://www.wattsimple.com/data/appliance-wattage/csv"
 
 #: Genericos sao produtos individuais (vao para a tabela ``product``).
 SOURCE_TYPE: str = "individual_product"
 
 #: Coluna esperada no CSV: nome do tipo de aparelho (ex.: "Geladeira").
-_NAME_FIELD: str = "name"
+_NAME_FIELDS: tuple[str, ...] = ("name", "appliance")
 
 #: Colunas alternativas aceitas para a potencia tipica (em watts).
-_POWER_FIELDS: tuple[str, ...] = ("avg_power_w", "power_w", "watts", "power")
+_POWER_FIELDS: tuple[str, ...] = (
+    "avg_power_w",
+    "running_watts",
+    "power_w",
+    "watts",
+    "power",
+)
 
 #: Colunas alternativas aceitas para consumo anual estimado (kWh).
 _ANNUAL_FIELDS: tuple[str, ...] = ("annual_energy_kwh", "annual_kwh", "kwh_year")
@@ -88,7 +97,7 @@ _NAME_TO_SLUG: dict[str, str] = {
 }
 
 
-class WattSimpleClient:
+class WattSimpleClient(ApiDataClient):
     """Transporte da fonte WattSimple (CSV estatico).
 
     Implementa :class:`SourceClient` por composicao sobre um leitor de
@@ -100,17 +109,27 @@ class WattSimpleClient:
     """
 
     def __init__(
-        self, csv_content: str | None = None, csv_path: Path | None = None
+        self,
+        csv_content: str | None = None,
+        csv_path: Path | None = None,
+        url: str | None = None,
+        timeout: float = 30.0,
+        session: Any | None = None,
     ) -> None:
         """Fonte de dados: OU conteudo CSV direto (testes), OU path.
 
         Raises:
             ValueError: se nenhuma fonte foi fornecida.
         """
-        if csv_content is None and csv_path is None:
-            raise ValueError("WattSimpleClient requer csv_content ou csv_path")
+        if sum(value is not None for value in (csv_content, csv_path, url)) != 1:
+            raise ValueError(
+                "WattSimpleClient requer exatamente um entre csv_content, "
+                "csv_path ou url"
+            )
         self._content = csv_content
         self._path = csv_path
+        self._url = url
+        super().__init__(timeout=timeout, session=session or requests)
 
     @property
     def code(self) -> str:
@@ -135,11 +154,17 @@ class WattSimpleClient:
 
     def discover(self) -> list[tuple[str, str]]:
         # Fonte estatica de dataset unico: sem sub-datasets.
-        return [(SOURCE_CODE, "WattSimple — tabela de potencia generica")]
+        return [(DATASET_ID, "WattSimple — tabela de potencia generica")]
 
     def close(self) -> None:
         # Nada a liberar (dados in-memory ou path).
         pass
+
+    def __enter__(self) -> "WattSimpleClient":
+        return self
+
+    def __exit__(self, *_exc_info: object) -> None:
+        self.close()
 
     # ------------------------------------------------------------------ #
     # Transporte real — UNICO ponto de contato com a fonte
@@ -147,21 +172,25 @@ class WattSimpleClient:
     def _fetch_rows(self) -> list[dict[str, Any]]:
         """Le o CSV inteiro e devolve linhas como dicts (snake_case).
 
-        UNKNOWN: formato real do WattSimple. Contrato interno assumido:
-        ``name`` + pelo menos um campo de potencia/annual (ver
-        :data:`_POWER_FIELDS` / :data:`_ANNUAL_FIELDS`). Quando a fonte
-        real for definida, apenas este metodo muda.
+        O endpoint oficial usa ``appliance`` como nome e
+        ``running_watts`` como potência típica. O campo ``starting_watts``
+        permanece no raw record: não é média operacional e não deve ser
+        copiado para ``avg_power_w``.
         """
         if self._content is not None:
             text = self._content
-        else:
+        elif self._path is not None:
             assert self._path is not None  # garantido no __init__
             text = self._path.read_text(encoding="utf-8")
+        else:
+            assert self._url is not None
+            text = self.get_text(self._url)
 
         reader = csv.DictReader(io.StringIO(text))
-        return [
+        rows = [
             {(k or "").strip().lower(): v for k, v in row.items()} for row in reader
         ]
+        return rows
 
 
 class WattSimpleAdapter:
@@ -296,11 +325,13 @@ class WattSimpleAdapter:
 
     @staticmethod
     def _extract_name(row: dict[str, Any]) -> str | None:
-        value = row.get(_NAME_FIELD)
-        if value is None:
-            return None
-        text = str(value).strip()
-        return text or None
+        for field in _NAME_FIELDS:
+            value = row.get(field)
+            if value is not None:
+                text = str(value).strip()
+                if text:
+                    return text
+        return None
 
     @staticmethod
     def _extract_power(row: dict[str, Any]) -> Decimal | None:
@@ -319,6 +350,8 @@ class WattSimpleAdapter:
 
 __all__ = [
     "SOURCE_CODE",
+    "DATASET_ID",
+    "DATASET_URL",
     "SOURCE_TYPE",
     "WattSimpleAdapter",
     "WattSimpleClient",

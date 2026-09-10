@@ -24,6 +24,7 @@ import pytest
 
 from collector.sources.protocol import RawRecord, SourceAdapter, SourceClient
 from collector.sources.wattsimple import (
+    DATASET_ID,
     SOURCE_CODE,
     WattSimpleAdapter,
     WattSimpleClient,
@@ -72,15 +73,19 @@ class TestProtocolConformance:
     def test_adapter_conforms_to_source_adapter(self) -> None:
         assert isinstance(WattSimpleAdapter(), SourceAdapter)
 
-    def test_client_requires_content_or_path(self) -> None:
-        with pytest.raises(ValueError, match="csv_content ou csv_path"):
+    def test_client_requires_exactly_one_input(self) -> None:
+        with pytest.raises(ValueError, match="exatamente um"):
             WattSimpleClient()
 
     def test_discover_returns_single_dataset(self) -> None:
         client = make_client(CSV_SIMPLE)
         datasets = client.discover()
         assert len(datasets) == 1
-        assert datasets[0][0] == SOURCE_CODE
+        assert datasets[0][0] == DATASET_ID
+
+    def test_client_supports_context_manager(self) -> None:
+        with make_client(CSV_SIMPLE) as client:
+            assert client.count(DATASET_ID) == 2
 
 
 # ------------------------------------------------------------------ #
@@ -141,6 +146,14 @@ class TestNormalize:
 
     def test_power_from_watts_column(self) -> None:
         product = first_normalized(CSV_SIMPLE)
+        assert product is not None
+        assert product.avg_power_w == Decimal("150.0")
+
+    def test_reads_official_wattsimple_field_names(self) -> None:
+        product = first_normalized(
+            "appliance,category,running_watts,starting_watts,typical_hours_per_day\n"
+            "Refrigerator,Kitchen,150,800,24\n"
+        )
         assert product is not None
         assert product.avg_power_w == Decimal("150.0")
 

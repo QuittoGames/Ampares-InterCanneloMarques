@@ -1,9 +1,7 @@
 package cannelo.marques.interdisciplinar.interdisciplinar.Services.User;
 
 import cannelo.marques.interdisciplinar.interdisciplinar.Repository.ProductRepository;
-import cannelo.marques.interdisciplinar.interdisciplinar.Repository.RegistryUserProductRepository;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -11,12 +9,13 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 
+import com.sun.xml.messaging.saaj.packaging.mime.util.UUDecoderStream;
+
 import cannelo.marques.interdisciplinar.interdisciplinar.DTO.ProductDTO;
 import cannelo.marques.interdisciplinar.interdisciplinar.Models.Product;
 import cannelo.marques.interdisciplinar.interdisciplinar.Models.User;
 import cannelo.marques.interdisciplinar.interdisciplinar.Models.RegistryUserProduct;
 import cannelo.marques.interdisciplinar.interdisciplinar.Repository.UserRepository;
-import cannelo.marques.interdisciplinar.interdisciplinar.Services.Consumption.ConsumptionCalculator;
 import cannelo.marques.interdisciplinar.interdisciplinar.Services.Registry.RegistryUserService;
 import cannelo.marques.interdisciplinar.interdisciplinar.exceptions.ProductNotFoundException;
 import cannelo.marques.interdisciplinar.interdisciplinar.exceptions.UserNotFoundException;
@@ -100,5 +99,14 @@ public class UserService {
             throw new UserNotFoundException("id not foud in database");
         }
         return user;
+    }
+
+    public Optional<User> create(){
+        User user = new User();
+        user.setName("test " + UUID.randomUUID().toString());
+
+        repository.save(user);
+
+        return Optional.of(user);
     }
 }

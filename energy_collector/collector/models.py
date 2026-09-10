@@ -24,6 +24,7 @@ import unicodedata
 import uuid
 from dataclasses import dataclass
 from decimal import Decimal
+from collections.abc import Sequence
 
 #: Nome canonico da fonte (legacy: usado por testes e como default).
 #: **Multi-fonte (PR 1+)**: a chave deterministica passa a usar
@@ -111,6 +112,20 @@ class Product:
         """UUID5 deterministico — a PK gerada na insercao (FR-004)."""
         return uuid.uuid5(_NAMESPACE, self.dedup_key())
 
+    def canonical_key(self) -> str:
+        """Identidade global do tipo de produto, independente da fonte.
+
+        A identidade canônica deliberadamente não inclui marca, modelo ou
+        fonte. Assim, ``Geladeira`` do WattSimple e modelos de geladeira do
+        INMETRO/ENERGY STAR podem contribuir para a mesma projeção global,
+        enquanto continuam preservados como representações de origem.
+        """
+        return f"{canonical(self.category)}|{canonical(self.subcategory)}"
+
+    def canonical_id(self) -> uuid.UUID:
+        """UUID estável da projeção canônica usada por novas cargas."""
+        return uuid.uuid5(_NAMESPACE, f"CANONICAL|{self.canonical_key()}")
+
     # ------------------------------------------------------------------ #
     # Regras de dominio (SC-004)
     # ------------------------------------------------------------------ #
@@ -140,8 +155,9 @@ class NormalizedProduct:
     Separa explicitamente tres grupos de dados (requisito de
     rastreabilidade do normalizer):
 
-    * ``product`` — o :class:`Product` canônico, unico objeto que vai ao
-      banco (contrato de escrita de 8 colunas). NUNCA carrega derivados.
+    * ``product`` — a projeção normalizada da fonte. O serviço pode projetá-la
+      em um produto canônico antes da escrita; derivados não entram em
+      ``product``.
     * ``raw_*`` — SOURCE DATA: valores BRUTOS vindos da API, preservados
       sem alteracao para auditoria (``raw_power`` e ``raw_annual_energy``).
     * ``equivalent_*`` / ``estimated_*`` — DERIVED DATA: valores calculados
@@ -184,6 +200,114 @@ class NormalizedProduct:
     @property
     def source_id(self) -> str | None:
         return self.product.source_id
+
+
+@dataclass(frozen=True, slots=True)
+class SourceProductLink:
+    """Representação de um produto/modelo em uma fonte específica."""
+
+    source_product_id: uuid.UUID
+    product_id: uuid.UUID
+    source: str
+    external_id: str
+    brand: str | None
+    model: str | None
+    dataset_id: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class SourceObservation:
+    """Valor de uma representação de fonte, separado da projeção canônica."""
+
+    id: uuid.UUID
+    canonical_product_id: uuid.UUID
+    source: str
+    external_id: str
+    brand: str | None
+    model: str | None
+    dataset_id: str | None
+    power_w: Decimal | None
+    annual_energy_kwh: Decimal | None
+    standby_power_w: Decimal | None
+
+
+def source_observation(product: Product) -> SourceObservation:
+    external_id = product.source_id or product.dedup_key()
+    observation_id = uuid.uuid5(
+        _NAMESPACE, f"OBSERVATION|{product.source}|{canonical(external_id)}"
+    )
+    return SourceObservation(
+        id=observation_id,
+        canonical_product_id=product.canonical_id(),
+        source=product.source,
+        external_id=external_id,
+        brand=product.brand,
+        model=product.model,
+        dataset_id=product.dataset_id,
+        power_w=product.avg_power_w,
+        annual_energy_kwh=product.annual_energy_kwh,
+        standby_power_w=product.standby_power_w,
+    )
+
+
+def source_product_link(product: Product) -> SourceProductLink:
+    """Converte uma linha de fonte em uma representação persistível."""
+    external_id = product.source_id or product.dedup_key()
+    source_product_id = uuid.uuid5(
+        _NAMESPACE, f"SOURCE_PRODUCT|{product.source}|{canonical(external_id)}"
+    )
+    return SourceProductLink(
+        source_product_id=source_product_id,
+        product_id=product.canonical_id(),
+        source=product.source,
+        external_id=external_id,
+        brand=product.brand,
+        model=product.model,
+        dataset_id=product.dataset_id,
+    )
+
+
+def merge_products(products: Sequence[Product]) -> list[Product]:
+    """Cria uma projeção canônica por tipo e calcula médias normalizadas.
+
+    Valores ausentes não participam da média. Os produtos recebidos não são
+    alterados; eles continuam disponíveis para persistência como origem.
+    """
+    from collections import defaultdict
+
+    groups: dict[str, list[Product]] = defaultdict(list)
+    for product in products:
+        groups[product.canonical_key()].append(product)
+
+    merged: list[Product] = []
+    for members in groups.values():
+        representative = members[0]
+        powers = [p.avg_power_w for p in members if p.avg_power_w is not None]
+        annuals = [
+            p.annual_energy_kwh for p in members if p.annual_energy_kwh is not None
+        ]
+        merged.append(
+            Product(
+                name=representative.subcategory,
+                brand=None,
+                model=None,
+                category=representative.category,
+                subcategory=representative.subcategory,
+                avg_power_w=(sum(powers, Decimal(0)) / len(powers)) if powers else None,
+                annual_energy_kwh=(sum(annuals, Decimal(0)) / len(annuals))
+                if annuals
+                else None,
+                standby_power_w=None,
+                source="CANONICAL",
+                source_id=representative.canonical_key(),
+                dataset_category=representative.subcategory,
+                is_generic=False,
+                label_class=next(
+                    (p.label_class for p in members if p.label_class), None
+                ),
+            )
+        )
+    return merged
 
 
 @dataclass(slots=True)

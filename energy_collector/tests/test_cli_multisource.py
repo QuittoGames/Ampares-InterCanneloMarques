@@ -28,7 +28,7 @@ class TestParser:
     def test_source_rejects_unknown(self) -> None:
         with pytest.raises(SystemExit) as exc:
             data_collector.build_parser().parse_args(
-                ["--source", "wattsimple", "--all"]
+                ["--source", "unknown-source", "--all"]
             )
         assert exc.value.code == 2
 
@@ -55,6 +55,9 @@ class TestRegistry:
 
     def test_available_sources_sorted(self) -> None:
         assert available_sources() == sorted(available_sources())
+
+    def test_wattsimple_is_registered(self) -> None:
+        assert "wattsimple" in available_sources()
 
 
 class TestLegacyPathUntouched:

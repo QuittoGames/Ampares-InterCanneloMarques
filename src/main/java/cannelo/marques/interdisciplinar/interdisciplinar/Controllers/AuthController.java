@@ -45,7 +45,8 @@ public class AuthController {
             authService.login(dto.id(), request, response);
             return ResponseEntity.ok().build();
         } catch (UserNotFoundException e) {
-            return ResponseEntity.notFound().build();
+            authService.register();
+            return ResponseEntity.ok().build();
         }
     }
 
@@ -59,4 +60,5 @@ public class AuthController {
         authService.logout(response);
         return ResponseEntity.ok().build();
     }
+
 }

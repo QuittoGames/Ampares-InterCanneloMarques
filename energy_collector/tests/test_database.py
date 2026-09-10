@@ -26,6 +26,7 @@ from collector.database import (
     _CREATE_ENERGY_SPEC_SQL,
     _CREATE_SOURCE_METADATA_SQL,
     _CREATE_SOURCE_PRODUCT_SQL,
+    _CREATE_SOURCE_OBSERVATION_SQL,
     _CREATE_SQL,
     _UPSERT_SQL,
     UpsertStats,
@@ -59,6 +60,7 @@ class TestEnsureTableMigrations:
         assert _CREATE_ENERGY_LABEL_CLASS_SQL in executed
         assert _CREATE_ENERGY_RAW_MEASUREMENT_SQL in executed
         assert _CREATE_SOURCE_METADATA_SQL in executed
+        assert _CREATE_SOURCE_OBSERVATION_SQL in executed
 
     def test_should_execute_product_create_before_auxiliary_tables(self) -> None:
         pool, conn, _cursor = make_fake_pool()
