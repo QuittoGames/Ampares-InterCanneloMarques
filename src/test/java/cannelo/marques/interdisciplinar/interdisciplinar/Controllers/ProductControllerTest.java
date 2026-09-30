@@ -1,7 +1,9 @@
 package cannelo.marques.interdisciplinar.interdisciplinar.Controllers;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -37,14 +39,14 @@ class ProductControllerTest {
     }
 
     @Test
-    void shouldSearchByTrimmedNameWhenSearchIsProvided() {
-        when(productRepository.findByNameContaining("television")).thenReturn(products);
+    void shouldSearchByTrimmedTermWhenSearchIsProvided() {
+        when(productRepository.searchByTerm("television")).thenReturn(products);
 
         var response = controller.list("  television  ", 10);
 
         assertEquals(products, response.getBody());
-        verify(productRepository).findByNameContaining("television");
-        verify(productRepository).findByNameContaining("television");
+        verify(productRepository).searchByTerm("television");
+        verify(productRepository, never()).findAll(any(Pageable.class));
     }
 
     @Test

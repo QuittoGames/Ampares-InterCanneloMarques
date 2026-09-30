@@ -23,6 +23,17 @@ public interface ProductRepository extends JpaRepository<Product, UUID>{
         """)
     Optional<List<Product>> searchByName(@Param("name") String name);
 
+    @Query("""
+            SELECT p
+            FROM Product p
+            WHERE LOWER(p.name) LIKE LOWER(CONCAT('%', :term, '%'))
+               OR LOWER(p.brand) LIKE LOWER(CONCAT('%', :term, '%'))
+               OR LOWER(p.model) LIKE LOWER(CONCAT('%', :term, '%'))
+               OR LOWER(p.category) LIKE LOWER(CONCAT('%', :term, '%'))
+               OR LOWER(p.subcategory) LIKE LOWER(CONCAT('%', :term, '%'))
+        """)
+    List<Product> searchByTerm(@Param("term") String term);
+
     List<Product> findByCategory(String category);
 
     List<Product> findByAvgPowerWGreaterThan(BigDecimal power);
@@ -34,8 +45,6 @@ public interface ProductRepository extends JpaRepository<Product, UUID>{
     List<Product> findByAnnualEnergyKwhBetween(BigDecimal minKwh, BigDecimal maxKwh);
 
     long countByAvgPowerWBetween(BigDecimal minPower, BigDecimal maxPower);
-
-    List<Product> findByNameContaining(String name);
 
     List<Product> findByModelContaining(String model);
 }

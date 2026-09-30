@@ -5,6 +5,12 @@ const state = {
     lastProductId: '',
 };
 
+/** Aguarda o usuário parar de digitar antes de disparar a busca server-side. */
+const SEARCH_DEBOUNCE_MS = 300;
+let searchDebounceTimer = null;
+/** Sequência de busca: descarta respostas HTTP que chegaram fora de ordem. */
+let searchRequestSeq = 0;
+
 const loginSection = document.getElementById('login-section');
 const registrySection = document.getElementById('registry-section');
 const loginForm = document.getElementById('login-form');
@@ -24,7 +30,7 @@ loginForm.addEventListener('submit', handleLogin);
 registryForm.addEventListener('submit', handleRegistrySubmit);
 calculateButton.addEventListener('click', calculateResults);
 logoutButton.addEventListener('click', clearSession);
-productSearch.addEventListener('input', renderProducts);
+productSearch.addEventListener('input', handleSearchInput);
 
 if (state.userId) {
     showRegistryScreen();
@@ -88,9 +94,55 @@ async function loadUserProducts() {
     }
 }
 
-function renderProducts() {
-    const search = productSearch.value.trim().toLocaleLowerCase();
-    const filteredProducts = state.products.filter((product) => {
+/**
+ * Controla a barra de pesquisa: valida o termo, cancela o debounce anterior e
+ * despacha a busca server-side em `GET /products?search=` (feature do ProductController).
+ */
+function handleSearchInput() {
+    window.clearTimeout(searchDebounceTimer);
+    searchRequestSeq += 1;
+
+    const term = productSearch.value.trim();
+
+    if (!term) {
+        renderProducts();
+        return;
+    }
+
+    const seq = searchRequestSeq;
+    searchDebounceTimer = window.setTimeout(() => searchProducts(term, seq), SEARCH_DEBOUNCE_MS);
+}
+
+/**
+ * Busca produtos no backend. `seq` marca a tentativa: se o usuário digitou de novo
+ * enquanto a resposta viajava, a resposta antiga é descartada (evita race condition).
+ */
+async function searchProducts(term, seq) {
+    replaceOptions(productSelect, [{ value: '', text: 'Buscando produtos...' }]);
+
+    try {
+        const data = await request(`/products?search=${encodeURIComponent(term)}`, { method: 'GET' });
+
+        if (seq !== searchRequestSeq) {
+            return;
+        }
+
+        renderProducts(normalizeProducts(data));
+    } catch (error) {
+        if (seq !== searchRequestSeq) {
+            return;
+        }
+
+        console.warn(`Busca server-side falhou (${error.message}). Usando filtro local como fallback.`);
+        renderProducts(filterProductsLocally(term));
+    }
+}
+
+/** Filtro client-side sobre a lista já carregada — usado só como fallback. */
+function filterProductsLocally(term) {
+    const needle = term.toLocaleLowerCase();
+
+    return state.products.filter((product) => {
         const searchableFields = [
             product.id,
             product.name,
@@ -100,17 +152,20 @@ function renderProducts() {
             product.subcategory,
         ];
 
-        return searchableFields.some((field) => String(field || '').toLocaleLowerCase().includes(search));
+        return searchableFields.some((field) => String(field || '').toLocaleLowerCase().includes(needle));
     });
+}
 
-    if (filteredProducts.length === 0) {
+/** Renderiza o <select> de produtos. Sem argumento, mostra a lista completa carregada. */
+function renderProducts(products = state.products) {
+    if (products.length === 0) {
         replaceOptions(productSelect, [{ value: '', text: 'Nenhum produto encontrado' }]);
         return;
     }
 
     replaceOptions(productSelect, [
         { value: '', text: 'Selecione um produto' },
-        ...filteredProducts.map((product) => ({
+        ...products.map((product) => ({
             value: product.id,
             text: formatProduct(product),
         })),

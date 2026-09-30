@@ -27,8 +27,9 @@ public class ProductController {
 
     @Operation(
             summary = "Lista produtos cadastrados",
-            description = "Suporta paginação via 'size' e filtro por nome via 'search'. " +
-                          "A busca por nome usa findByNameContaining (LIKE %x%) do JPA. " +
+            description = "Suporta paginação via 'size' e busca server-side via 'search'. " +
+                          "A busca usa searchByTerm: case-insensitive (LOWER(x) LIKE %termo%) cobrindo " +
+                          "nome, marca, modelo, categoria e subcategoria. " +
                           "Futuramente será otimizada com índice B-Tree no PostgreSQL."
     )
     @GetMapping
@@ -39,7 +40,7 @@ public class ProductController {
         List<Product> products;
 
         if (search != null && !search.isBlank()) {
-            products = productRepository.findByNameContaining(search.trim());
+            products = productRepository.searchByTerm(search.trim());
         } else if (size > 0) {
             products = productRepository.findAll(PageRequest.of(0, size)).getContent();
         } else {
