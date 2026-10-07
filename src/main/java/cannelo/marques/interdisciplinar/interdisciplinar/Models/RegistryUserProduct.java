@@ -48,6 +48,14 @@ public class RegistryUserProduct {
         this.product = product;
     }
 
+    public RegistryUserProduct(User user, int quantity, BigDecimal avgActiveHours, BigDecimal hoursStandby, Product product) {
+        this.user = user;
+        this.quantity = quantity;
+        this.avgActiveHours = avgActiveHours;
+        this.hoursStandby = hoursStandby;
+        this.product = product;
+    }
+
     public UUID getId() {
         return id;
     }

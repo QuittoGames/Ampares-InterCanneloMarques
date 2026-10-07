@@ -36,7 +36,7 @@ if TYPE_CHECKING:
     from psycopg_pool import ConnectionPool
 
     from .config import DbConfig
-    from .models import AggregateRecord, Product
+    from .models import AggregateRecord, Product, SourceObservation, source_observation
 
 logger = logging.getLogger(__name__)
 
@@ -138,6 +138,41 @@ CREATE TABLE IF NOT EXISTS aggregate_reference (
 )
 """
 
+_CREATE_SOURCE_OBSERVATION_SQL = """
+CREATE TABLE IF NOT EXISTS product_source_observation (
+    id UUID PRIMARY KEY,
+    canonical_product_id UUID NOT NULL REFERENCES product(id) ON DELETE CASCADE,
+    source VARCHAR(50) NOT NULL,
+    external_id VARCHAR(255) NOT NULL,
+    brand VARCHAR(255),
+    model VARCHAR(255),
+    dataset_id VARCHAR(255),
+    power_w NUMERIC CHECK (power_w IS NULL OR power_w >= 0),
+    annual_energy_kwh NUMERIC CHECK (annual_energy_kwh IS NULL OR annual_energy_kwh >= 0),
+    standby_power_w NUMERIC CHECK (standby_power_w IS NULL OR standby_power_w >= 0),
+    observed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (source, external_id)
+)
+"""
+
+_SOURCE_OBSERVATION_UPSERT_SQL = """
+INSERT INTO product_source_observation
+    (id, canonical_product_id, source, external_id, brand, model, dataset_id,
+     power_w, annual_energy_kwh, standby_power_w)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+ON CONFLICT (id) DO UPDATE SET
+    canonical_product_id = EXCLUDED.canonical_product_id,
+    source = EXCLUDED.source,
+    external_id = EXCLUDED.external_id,
+    brand = EXCLUDED.brand,
+    model = EXCLUDED.model,
+    dataset_id = EXCLUDED.dataset_id,
+    power_w = EXCLUDED.power_w,
+    annual_energy_kwh = EXCLUDED.annual_energy_kwh,
+    standby_power_w = EXCLUDED.standby_power_w,
+    observed_at = now()
+"""
+
 #: Migracao idempotente para bancos criados antes da coluna ``subcategory``.
 _ALTER_SQL = "ALTER TABLE product ADD COLUMN IF NOT EXISTS subcategory VARCHAR(255)"
 
@@ -220,6 +255,7 @@ def ensure_table(pool: ConnectionPool) -> None:
             conn.execute(_CREATE_ENERGY_RAW_MEASUREMENT_SQL)
             conn.execute(_CREATE_SOURCE_METADATA_SQL)
             conn.execute(_CREATE_AGGREGATE_REFERENCE_SQL)
+            conn.execute(_CREATE_SOURCE_OBSERVATION_SQL)
     except Exception as exc:  # psycopg.Error + erros de pool
         raise PersistenceError(f"Falha ao garantir a tabela '{TABLE}': {exc}") from exc
     logger.info("Tabela '%s' e tabelas auxiliares garantidas", TABLE)
@@ -323,6 +359,41 @@ def upsert_label_classes(pool: ConnectionPool, products: Sequence[Product]) -> i
     except Exception as exc:  # psycopg.Error + erros de pool
         raise PersistenceError(
             f"Falha ao gravar {len(params)} classes ENCE: {exc}"
+        ) from exc
+    return len(params)
+
+
+def upsert_source_observations(
+    pool: ConnectionPool, products: Sequence[Product]
+) -> int:
+    """Persiste cada modelo/registro da fonte ligado ao produto canônico."""
+    from .models import source_observation
+
+    if not products:
+        return 0
+    observations = [source_observation(product) for product in products]
+    observations.sort(key=lambda observation: observation.id)
+    params = [
+        (
+            str(observation.id),
+            str(observation.canonical_product_id),
+            observation.source,
+            observation.external_id,
+            observation.brand,
+            observation.model,
+            observation.dataset_id,
+            observation.power_w,
+            observation.annual_energy_kwh,
+            observation.standby_power_w,
+        )
+        for observation in observations
+    ]
+    try:
+        with pool.connection() as conn, conn.transaction(), conn.cursor() as cur:
+            cur.executemany(_SOURCE_OBSERVATION_UPSERT_SQL, params)
+    except Exception as exc:
+        raise PersistenceError(
+            f"Falha ao gravar {len(params)} observacoes de fonte: {exc}"
         ) from exc
     return len(params)
 

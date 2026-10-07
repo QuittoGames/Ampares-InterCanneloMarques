@@ -33,9 +33,14 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from ..database import upsert_aggregates, upsert_batch, upsert_label_classes
+from ..database import (
+    upsert_aggregates,
+    upsert_batch,
+    upsert_label_classes,
+    upsert_source_observations,
+)
 from ..exceptions import PersistenceError
-from ..models import AggregateRecord, Product
+from ..models import AggregateRecord, NormalizedProduct, Product, merge_products
 from ..pagination import DEFAULT_PAGE_SIZE
 from .collection import CategoryReport, CollectionReport
 
@@ -87,6 +92,7 @@ class MultiSourceCollectionService:
             ``CategoryReport`` (mesmo contrato do legado, FR-011).
         """
         rep = CategoryReport(category=category, dataset_id=dataset_id)
+        all_products: list[Product] = []
         try:
             for offset, records in adapter.iter_raw_records(
                 dataset_id=dataset_id,
@@ -98,9 +104,14 @@ class MultiSourceCollectionService:
                     adapter, records, dataset_id, category
                 )
                 rep.discarded += discarded
+                all_products.extend(products)
                 self._persist_page(
                     adapter, dataset_id, offset, products, aggregates, rep
                 )
+            # A source may span many pages. The canonical average must use
+            # every observation in the dataset, not only the current page.
+            if all_products:
+                self._persist_products(dataset_id, 0, all_products, rep)
         except PersistenceError as exc:
             logger.error("[%s] %s — persistencia falhou: %s", dataset_id, category, exc)
             rep.status = "failed"
@@ -176,6 +187,12 @@ class MultiSourceCollectionService:
             if isinstance(result, AggregateRecord):
                 aggregates.append(result)
                 continue
+            if isinstance(result, NormalizedProduct):
+                # ENERGY STAR exposes the richer normalization contract so
+                # raw/derived values remain available to future persistence
+                # adapters. The current product table still receives only
+                # the canonical Product projection.
+                result = result.product
             if isinstance(result, Product):
                 ok, reason = result.validate()
                 if not ok:
@@ -216,8 +233,6 @@ class MultiSourceCollectionService:
         """
         if adapter.source_type == "aggregate":
             self._persist_aggregates(dataset_id, offset, aggregates, rep)
-        else:
-            self._persist_products(dataset_id, offset, products, rep)
         # Defensivo: agregados vindos de fonte individual (MixedAdapter
         # scenario) NAO sao descartados silenciosamente.
         if adapter.source_type != "aggregate" and aggregates:
@@ -228,12 +243,13 @@ class MultiSourceCollectionService:
     ) -> None:
         if not products:
             return
-        stats = upsert_batch(self.pool, products)
+        canonical_products = merge_products(products)
+        stats = upsert_batch(self.pool, canonical_products)
         rep.inserted += stats.inserted
         rep.updated += stats.updated
-        # ENCE quando a fonte declara (internamente filtra sem label;
-        # sem executemany quando vazio — ver testes PR 4).
-        upsert_label_classes(self.pool, products)
+        upsert_source_observations(self.pool, products)
+        # ENCE é projetada no produto canônico para manter o contrato Spring.
+        upsert_label_classes(self.pool, canonical_products)
 
     def _persist_aggregates(
         self,

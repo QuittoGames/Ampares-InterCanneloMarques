@@ -402,3 +402,9 @@ psycopg_pool.PoolTimeout: couldn't get a connection after 30.00 sec
 2026-08-24 22:53:18,115 INFO  water_heaters                pbpq-swnu        1257         0      1257           0  ok
 2026-08-24 22:53:18,115 INFO  ------------------------------------------------------------------------------
 2026-08-24 22:53:18,115 INFO  TOTAL: recebidos=374798 inseridos=23549 atualizados=351213 descartados=36 | 234.6s
+2026-09-09 19:14:01,970 INFO  Socrata: anonimo | rate limit: 4.0 req/s
+2026-09-09 19:14:09,262 INFO  ==============================================================================
+2026-09-09 19:14:09,262 INFO  categoria                    dataset     recebidos inseridos  atualiz. descartados  status
+2026-09-09 19:14:09,263 INFO  wattsimple_tabela_de_potenci wattsimple_appliance_wattage       143        20         0           0  ok
+2026-09-09 19:14:09,263 INFO  ------------------------------------------------------------------------------
+2026-09-09 19:14:09,263 INFO  TOTAL: recebidos=143 inseridos=20 atualizados=0 descartados=0 | 5.3s

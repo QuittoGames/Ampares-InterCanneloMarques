@@ -6,6 +6,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -29,6 +30,27 @@ public class ConsumeMetricsService implements MetricsService<User,BigDecimal>{
             UserRepository userRepository){
         this.registryRepository = registryRepository;
         this.userRepository = userRepository;
+    }
+
+    @Override
+    public Optional<BigDecimal> calculateTotalEnergyByUser(User user){
+        Objects.requireNonNull(user, "User cant be null");
+
+        if (!userRepository.existsById(user.getId())) {
+            throw new IllegalStateException("User not found: " + user.getId());
+        }
+
+        List<RegistryUserProduct> userProductReg = registryRepository.findByUser(user);
+
+        BigDecimal consumeInYear = BigDecimal.ZERO;
+
+        for (RegistryUserProduct up : userProductReg){
+            consumeInYear = consumeInYear.add(
+                ConsumptionCalculator.calculate(up, RegistryUserProduct::getAvgActiveHours)
+            );
+        }
+
+        return Optional.of(consumeInYear);
     }
 
     @Override
@@ -65,9 +87,9 @@ public class ConsumeMetricsService implements MetricsService<User,BigDecimal>{
             .filter(up -> up.getProduct() != null)
             .filter(up -> up.getProduct().getAvgPowerW() != null)
             .max(Comparator.comparing(
-                up -> up.getProduct()
-                    .getAvgPowerW()
-                    .multiply(up.getAvgActiveHours())
+                up -> ConsumptionCalculator.calculate(
+                    up,
+                    RegistryUserProduct::getAvgActiveHours)
             ))
             .map(RegistryUserProduct::getProduct);
 
@@ -87,7 +109,9 @@ public class ConsumeMetricsService implements MetricsService<User,BigDecimal>{
             .filter(up -> up.getAvgActiveHours() != null)
 
             .sorted(Comparator.comparing(
-                up -> up.getProduct().getAvgPowerW().multiply(up.getAvgActiveHours()),
+                up -> ConsumptionCalculator.calculate(
+                    up,
+                    RegistryUserProduct::getAvgActiveHours),
                 Comparator.reverseOrder()))
 
             .map(RegistryUserProduct::getProduct)

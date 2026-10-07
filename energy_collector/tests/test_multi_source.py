@@ -16,7 +16,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from collector.models import AggregateRecord
+from collector.models import AggregateRecord, NormalizedProduct, Product
 from collector.services.multi_source import MultiSourceCollectionService
 from collector.sources.iea import DATASET_ID as IEA_DATASET
 from collector.sources.iea import IeaAdapter, IeaClient
@@ -93,8 +93,10 @@ class TestCollectWattSimple:
 
         service.collect(adapter, dataset_id=WS_CODE, category="wattsimple")
 
+        # A tabela product agora representa o produto canônico global;
+        # genericidade pertence à observação WattSimple.
         rows = executemany_rows(conn)[0]
-        assert all(row[-1] is True for row in rows)  # is_generic = True
+        assert all(row[-1] is False for row in rows)
 
     def test_limit_respects_smoke_test(self) -> None:
         pool, _conn, _cur = make_fake_pool(existing=0)
@@ -107,6 +109,45 @@ class TestCollectWattSimple:
 
         assert rep.received == 1
         assert rep.inserted == 1
+
+
+class TestCollectEnergyStar:
+    def test_accepts_normalized_product_contract(self) -> None:
+        """ENERGY STAR retorna NormalizedProduct e deve chegar a product."""
+        pool, conn, _cur = make_fake_pool(existing=0)
+        service = MultiSourceCollectionService(pool=pool)
+
+        product = Product(
+            name="Example Model 1",
+            brand="Example",
+            model="Model 1",
+            category="Televisões",
+            subcategory="Não categorizado",
+            avg_power_w=Decimal("100"),
+            annual_energy_kwh=Decimal("120"),
+            standby_power_w=None,
+            source="ENERGY STAR",
+            source_id="es-1",
+        )
+
+        class StubAdapter:
+            code = "ENERGY_STAR"
+            source_type = "individual_product"
+
+            def normalize(self, *_args: Any, **_kwargs: Any) -> NormalizedProduct:
+                return NormalizedProduct(product=product)
+
+            def iter_raw_records(self, **_kwargs: Any) -> Any:
+                yield 0, [{"source_pk": "es-1", "raw": {}}]
+
+        rep = service.collect(
+            StubAdapter(), dataset_id="televisions", category="televisions"
+        )
+
+        assert rep.status == "ok"
+        assert rep.received == 1
+        assert rep.inserted == 1
+        assert "INSERT INTO product" in executed_sqls(conn)[0]
 
 
 # ------------------------------------------------------------------ #
@@ -138,7 +179,7 @@ class TestCollectInmetro:
 
         service.collect(adapter, dataset_id=INMETRO_DATASET, category="inmetro")
 
-        label_rows = executemany_rows(conn)[1]  # product primeiro, ENCE depois
+        label_rows = executemany_rows(conn)[2]  # product, observation, ENCE
         assert len(label_rows) == 2
         assert {row[1] for row in label_rows} == {"A", "A++"}
 

@@ -20,6 +20,9 @@ from typing import Any
 
 from ..api_client import RateLimiter
 from .energy_star import EnergyStarAdapter, EnergyStarClient
+from .wattsimple import DATASET_ID as WATTSIMPLE_DATASET_ID
+from .wattsimple import DATASET_URL as WATTSIMPLE_DATASET_URL
+from .wattsimple import WattSimpleAdapter, WattSimpleClient
 
 #: Entrada do registro: como montar uma fonte no CLI.
 SourceSpec = dict[str, Any]
@@ -46,11 +49,26 @@ def build_energy_star(app_token: str | None, rate_per_sec: float) -> SourceSpec:
     }
 
 
+def build_wattsimple(_app_token: str | None, _rate_per_sec: float) -> SourceSpec:
+    """Monta o dataset CSV oficial de aparelhos genéricos WattSimple."""
+
+    def make_client() -> WattSimpleClient:
+        return WattSimpleClient(url=WATTSIMPLE_DATASET_URL)
+
+    return {
+        "code": "WATTSIMPLE",
+        "make_client": make_client,
+        "make_adapter": lambda: WattSimpleAdapter(client=make_client()),
+        "datasets": [(WATTSIMPLE_DATASET_ID, "WattSimple appliance wattage")],
+    }
+
+
 #: Registro de fontes disponiveis no CLI. Chaves = valores de --source.
 #: Fontes UNKNOWN (WattSimple/INMETRO/IEA) entram quando o transporte
 #: real for definido (ver docstring do modulo).
 SOURCES: dict[str, Callable[[str | None, float], SourceSpec]] = {
     "energy-star": build_energy_star,
+    "wattsimple": build_wattsimple,
 }
 
 

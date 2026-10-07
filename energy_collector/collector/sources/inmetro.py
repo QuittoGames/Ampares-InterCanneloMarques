@@ -45,6 +45,7 @@ from ..models import NAME_MAX, TEXT_MAX, Product
 from ..normalization import _to_decimal, _truncate
 from ..taxonomy import resolve_taxonomy
 from .protocol import RawRecord
+from .api_client import ApiDataClient
 
 logger = logging.getLogger(__name__)
 

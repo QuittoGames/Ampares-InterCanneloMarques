@@ -3,12 +3,17 @@ package cannelo.marques.interdisciplinar.interdisciplinar.Models.interfaces;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import cannelo.marques.interdisciplinar.interdisciplinar.Models.Product;
 import cannelo.marques.interdisciplinar.interdisciplinar.Models.User;
 import cannelo.marques.interdisciplinar.interdisciplinar.Models.RegistryUserProduct;
 
 public interface MetricsService<Client extends User , OperationValue extends Number> {
+    /// Soma do consumo anual em kWh de todos os produtos do usuário (sem dividir).
+    Optional<BigDecimal> calculateTotalEnergyByUser(Client user);
+
+    /// Média do consumo anual por produto do usuário.
     Optional<BigDecimal> calculateAverageEnergyByUser(Client user);
 
     Optional<Product> calculateMostConsumerProduct(Client user);

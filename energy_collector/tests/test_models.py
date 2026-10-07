@@ -8,17 +8,27 @@ determinismo do ``product_id`` (uuid5) e as regras de ``validate``.
 from __future__ import annotations
 
 import uuid
+from decimal import Decimal
 
 import pytest
 
-from collector.models import SOURCE_NAME, Product, canonical, stable_uuid
+from collector.models import (
+    SOURCE_NAME,
+    Product,
+    canonical,
+    merge_products,
+    source_observation,
+    stable_uuid,
+)
 
 from .conftest import make_product  # noqa: TID252 - helper do pacote de testes
 
 
 class TestCanonical:
     @pytest.mark.parametrize("value", [None, "", "   "])
-    def test_should_return_empty_string_for_empty_input(self, value: str | None) -> None:
+    def test_should_return_empty_string_for_empty_input(
+        self, value: str | None
+    ) -> None:
         assert canonical(value) == ""
 
     def test_should_casefold_and_collapse_whitespace(self) -> None:
@@ -63,6 +73,48 @@ class TestProductId:
     def test_should_be_uuid5(self) -> None:
         # Contrato FR-004: identidade deterministic via uuid5.
         assert make_product().product_id().version == 5
+
+    def test_should_share_canonical_id_across_sources(self) -> None:
+        wattsimple = make_product(
+            source="WATTSIMPLE", source_id="Refrigerator", power=Decimal("150")
+        )
+        inmetro = make_product(
+            source="INMETRO", source_id="Brand|Model", power=Decimal("250")
+        )
+
+        assert wattsimple.canonical_id() == inmetro.canonical_id()
+
+    def test_should_merge_source_values_using_average(self) -> None:
+        products = [
+            make_product(
+                source="WATTSIMPLE",
+                source_id="generic",
+                power=Decimal("100"),
+                annual=Decimal("200"),
+            ),
+            make_product(
+                source="INMETRO",
+                source_id="brand|model",
+                power=Decimal("300"),
+                annual=None,
+            ),
+        ]
+
+        merged = merge_products(products)
+
+        assert len(merged) == 1
+        assert merged[0].source == "CANONICAL"
+        assert merged[0].avg_power_w == Decimal("200")
+        assert merged[0].annual_energy_kwh == Decimal("200")
+
+    def test_should_link_source_observation_to_canonical_product(self) -> None:
+        product = make_product(source="INMETRO", source_id="Brand|Model")
+
+        observation = source_observation(product)
+
+        assert observation.canonical_product_id == product.canonical_id()
+        assert observation.source == "INMETRO"
+        assert observation.external_id == "Brand|Model"
 
     def test_should_ignore_case_and_spacing_variations_in_fallback(self) -> None:
         spaced = make_product(

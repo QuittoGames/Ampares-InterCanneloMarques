@@ -26,9 +26,9 @@ import cannelo.marques.interdisciplinar.interdisciplinar.Models.RegistryUserProd
  *
  * <p>Fórmula:
  * <pre>
- *     P (W) × horas
- * consumo = ─────────────
- *               1000
+ *     P (W) × horas × quantity
+ * consumo = ──────────────────
+ *                 1000
  * </pre>
  * Onde {@code horas} vem do {@code hoursProvider} (em geral
  * {@code RegistryUserProduct::getAvgActiveHours} ou
@@ -85,6 +85,7 @@ public final class ConsumptionCalculator {
         return userProduct.getProduct()
                 .getAvgPowerW()
                 .multiply(hours)
+                .multiply(BigDecimal.valueOf(userProduct.getQuantity()))
                 .divide(W_TO_KW);
     }
 
