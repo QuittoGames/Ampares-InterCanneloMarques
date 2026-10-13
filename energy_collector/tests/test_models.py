@@ -84,7 +84,9 @@ class TestProductId:
 
         assert wattsimple.canonical_id() == inmetro.canonical_id()
 
-    def test_should_merge_source_values_using_average(self) -> None:
+    def test_should_aggregate_only_eligible_brazilian_records(self) -> None:
+        # Seccao 4/6 da spec: WattSimple (generico) NUNCA entra na media
+        # canonica; apenas a fonte primaria brasileira (INMETRO) conta.
         products = [
             make_product(
                 source="WATTSIMPLE",
@@ -104,8 +106,74 @@ class TestProductId:
 
         assert len(merged) == 1
         assert merged[0].source == "CANONICAL"
-        assert merged[0].avg_power_w == Decimal("200")
-        assert merged[0].annual_energy_kwh == Decimal("200")
+        assert merged[0].avg_power_w == Decimal("300")  # somente INMETRO
+        assert merged[0].annual_energy_kwh is None  # INMETRO nao declara
+
+    def test_foreign_records_do_not_contribute_metrics(self) -> None:
+        # ENERGY STAR (estrangeira) com valores nao sobrescreve nem se
+        # soma ao dado brasileiro verificado.
+        products = [
+            make_product(
+                source="ENERGY STAR",
+                source_id="us-model",
+                power=Decimal("100"),
+                annual=Decimal("500"),
+            ),
+            make_product(
+                source="INMETRO",
+                source_id="brand|model",
+                power=None,
+                annual=Decimal("360"),
+            ),
+        ]
+
+        merged = merge_products(products)
+
+        assert len(merged) == 1
+        assert merged[0].avg_power_w is None  # so a fonte BR tem anual
+        assert merged[0].annual_energy_kwh == Decimal("360")
+
+    def test_without_eligible_records_canonical_row_is_anchor_only(self) -> None:
+        # Sem fonte primaria BR: registro canonico existe SO como ancora
+        # das observacoes — metricas indisponivel, nunca fabricadas.
+        products = [
+            make_product(
+                source="WATTSIMPLE",
+                source_id="g1",
+                power=Decimal("100"),
+                annual=Decimal("200"),
+            ),
+            make_product(
+                source="ENERGY STAR",
+                source_id="us1",
+                power=Decimal("150"),
+                annual=Decimal("300"),
+            ),
+        ]
+
+        merged = merge_products(products)
+
+        assert len(merged) == 1
+        assert merged[0].source == "CANONICAL"
+        assert merged[0].avg_power_w is None
+        assert merged[0].annual_energy_kwh is None
+
+    def test_eligible_population_is_averaged_per_metric(self) -> None:
+        # Media apenas dentro da populacao elegivel e POR metrica
+        # (registros sem valor naquela metrica ficam de fora).
+        products = [
+            make_product(source="INMETRO", source_id="b1", annual=Decimal("300")),
+            make_product(source="INMETRO", source_id="b2", annual=Decimal("420")),
+            make_product(source="WATTSIMPLE", source_id="g", annual=Decimal("999")),
+        ]
+        # media apenas dos elegiveis (WATTSIMPLE fica de fora)
+        merged = merge_products(products[:2])
+        assert merged[0].annual_energy_kwh == Decimal("360")
+        assert merged[0].avg_power_w is None
+
+        merged_all = merge_products(products)
+        # WattSimple permanece fora da populacao mesmo presente.
+        assert merged_all[0].annual_energy_kwh == Decimal("360")
 
     def test_should_link_source_observation_to_canonical_product(self) -> None:
         product = make_product(source="INMETRO", source_id="Brand|Model")

@@ -36,7 +36,7 @@ from collector.config import (
     DbConfig,
     get_app_token,
 )
-from collector.database import close_pool, create_pool, ensure_table
+from collector.database import close_pool, create_pool, verify_schema
 from collector.normalization import slugify_category
 from collector.services.collection import CollectionReport, CollectionService
 from collector.services.multi_source import MultiSourceCollectionService
@@ -157,7 +157,7 @@ def _log_report(report: CollectionReport, elapsed_s: float) -> None:
         "dataset",
         "recebidos",
         "inseridos",
-        "atualiz.",
+        "duplic.",
         "descartados",
         "status",
     )
@@ -168,17 +168,17 @@ def _log_report(report: CollectionReport, elapsed_s: float) -> None:
             cat.dataset_id,
             cat.received,
             cat.inserted,
-            cat.updated,
+            cat.duplicates,
             cat.discarded,
             cat.status,
         )
     totals = report.totals
     LOG.info("-" * 78)
     LOG.info(
-        "TOTAL: recebidos=%d inseridos=%d atualizados=%d descartados=%d | %.1fs",
+        "TOTAL: recebidos=%d inseridos=%d duplicatas=%d descartados=%d | %.1fs",
         totals.received,
         totals.inserted,
-        totals.updated,
+        totals.duplicates,
         totals.discarded,
         elapsed_s,
     )
@@ -263,7 +263,7 @@ def main(argv: list[str] | None = None) -> int:
 
     started = time.monotonic()
     try:
-        ensure_table(pool)
+        verify_schema(pool)
 
         # Strangler Fig (PR 6, D8=A): --source ativa o pipeline
         # multi-fonte; sem a flag, o caminho legado ENERGY STAR roda

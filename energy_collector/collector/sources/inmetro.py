@@ -8,7 +8,15 @@ Contexto (evidencia coletada):
   (compart. congelados), 3=refrigerador geral, 4=Combinado, 5=Combinado
   Frost Free, 6=Congelador.
 * O consumo e declarado em **kWh/mes** — convertido aqui para
-  ``annual_energy_kwh`` (x12) sem inventar valores.
+  ``annual_energy_kwh`` (x12) **exatamente uma vez** (spec secao 5).
+  Se a fonte ja declarar um valor ANUAL explicito, ele e usado tal qual
+  (``raw_energy_unit="kWh/ano"``) e o x12 NUNCA e aplicado — anual e
+  mensal nao se confundem. O valor bruto + unidade original ficam em
+  ``raw_energy_value``/``raw_energy_unit`` para rastreabilidade.
+* Tensao declarada (quando presente nas colunas do PBE) e preservada
+  como PROVENIENCIA (``voltage_*`` no Product -> observacao de origem).
+  Valores nunca sao convertidos: 110 V, 127 V e 220 V permanecem
+  distintos; ausencia fica ``unknown`` (spec secao 3).
 * Cada modelo tem classe ENCE (``"A"``..``"G"``), gravada em memoria no
   campo ``Product.label_class`` (destino: tabela auxiliar
   ``energy_label_class`` da PR 2).
@@ -44,6 +52,7 @@ from typing import Any
 from ..models import NAME_MAX, TEXT_MAX, Product
 from ..normalization import _to_decimal, _truncate
 from ..taxonomy import resolve_taxonomy
+from ..voltage import parse_voltage
 from .protocol import RawRecord
 from .api_client import ApiDataClient
 
@@ -85,9 +94,10 @@ _CATEGORY_TO_SUBCATEGORY: dict[str, str] = {
 }
 
 #: Classes ENCE validas (tabela ``energy_label_class`` da PR 2 usa o
-#: mesmo CHECK: 'A++','A+','A'..'G').
+#: mesmo CHECK: 'A+++','A++','A+','A'..'G'). ``A+++`` existe no Padrão
+#: 2022 da tabela PBE real (verificado no XLSX oficial).
 _VALID_LABELS: frozenset[str] = frozenset(
-    {"A++", "A+", "A", "B", "C", "D", "E", "F", "G"}
+    {"A+++", "A++", "A+", "A", "B", "C", "D", "E", "F", "G"}
 )
 
 #: Colunas alternativas aceitas por campo (formato real UNKNOWN).
@@ -102,6 +112,38 @@ _KWH_MONTH_FIELDS: tuple[str, ...] = (
 )
 _CATEGORY_FIELDS: tuple[str, ...] = ("category", "categoria")
 _LABEL_FIELDS: tuple[str, ...] = ("label_class", "classe", "etiqueta", "ence")
+#: Consumo ANUAL ja declarado pela fonte (kWh/ano) — tem precedencia sobre
+#: o mensal e NUNCA passa por x12 (spec secao 5: anual x12 = erro grave).
+_ANNUAL_KWH_FIELDS: tuple[str, ...] = (
+    "kwh_year",
+    "kwh_ano",
+    "annual_kwh",
+    "annual_energy_kwh",
+    "consumo_kwh_ano",
+    "consumo_anual_kwh",
+)
+#: Tensao declarada (aliases PT-BR/EN). Ausente => unknown (nunca inferir).
+_VOLTAGE_FIELDS: tuple[str, ...] = (
+    "voltage",
+    "voltage_v",
+    "tensao",
+    "tensao_v",
+    "tensoes",
+    "voltagem",
+    "tensao_nominal",
+    "tensao_nominal_v",
+)
+#: Identificador explicito da fonte (tabela PBE real: um N DE REGISTRO
+#: pode cobrir VARIOS modelos, entao a identidade usa marca|modelo|tensao
+#: quando a fonte declara por tensao — ver InmetroXlsxClient).
+#: ATENCAO: a chave "registro" NAO entra aqui — o N de registro e o
+#: numero do CERTIFICADO (nao unico por modelo) e nunca e identidade.
+_SOURCE_ID_FIELDS: tuple[str, ...] = (
+    "source_id",
+    "numero_registro",
+    "n_de_registro",
+    "numero_do_registro",
+)
 
 
 class InmetroClient:
@@ -224,7 +266,6 @@ class InmetroAdapter:
         *,
         dataset_id: str,
         category: str,
-        tariff_per_kwh: Decimal | None = None,
     ) -> Product | None:
         """Linha PBE -> :class:`Product` (brandado, com ``label_class``).
 
@@ -237,19 +278,26 @@ class InmetroAdapter:
         raw = raw_record.get("raw") or {}
         brand = self._extract_first(raw, _BRAND_FIELDS)
         model = self._extract_first(raw, _MODEL_FIELDS)
-        kwh_month = self._extract_kwh_month(raw)
+
+        # Energia: ANUAL explicito tem precedencia e NUNCA leva x12;
+        # somente mensal -> anual (x12 exatamente uma vez). Sem nenhuma
+        # declaracao -> descarte (nunca inventar consumo).
+        annual, raw_value, raw_unit = self._energy_declaration(raw)
 
         # Identificacao minima: PBE e brandado — marca+modelo obrigatorios.
-        if not brand or not model or kwh_month is None:
+        if not brand or not model or annual is None:
             logger.debug(
-                "INMETRO: registro descartado (brand=%r, model=%r, kwh_month=%r)",
+                "INMETRO: registro descartado (brand=%r, model=%r, energy=%r %r)",
                 brand,
                 model,
-                kwh_month,
+                raw_value,
+                raw_unit,
             )
             return None
 
-        annual = self._annual_from_monthly(kwh_month)
+        # Tensao: apenas preservada (verbatim + interpretacao). NUNCA
+        # convertida, NUNCA inferida — fonte sem tensao fica "unknown".
+        voltage = parse_voltage(self._extract_first(raw, _VOLTAGE_FIELDS))
         taxonomy = resolve_taxonomy(_TAXONOMY_SLUG)
         subcategory = self._subcategory(raw) or taxonomy["subcategory"]
 
@@ -266,16 +314,37 @@ class InmetroAdapter:
             annual_energy_kwh=annual,
             standby_power_w=None,
             source=SOURCE_CODE,
-            source_id=f"{brand}|{model}",  # identificador estavel na fonte
+            source_id=self._source_identity(raw, brand, model),
             dataset_category=_TAXONOMY_SLUG,
             dataset_id=DATASET_ID,
             is_generic=False,  # PBE: produto brandado
             label_class=self._extract_label(raw),  # ENCE em memoria
+            voltage_raw=voltage.raw,
+            voltage_kind=voltage.kind,
+            voltage_min_v=voltage.min_v,
+            voltage_max_v=voltage.max_v,
+            raw_energy_value=raw_value,  # bruto ANTES da conversao x12
+            raw_energy_unit=raw_unit,  # unidade/periodo originais
         )
 
     # ------------------------------------------------------------------ #
     # Helpers internos
     # ------------------------------------------------------------------ #
+    @staticmethod
+    def _source_identity(raw: dict[str, Any], brand: str, model: str) -> str:
+        """Identidade estavel na fonte.
+
+        Fallback: ``marca|modelo`` (UUIDs do fixture CSV preservados).
+        A tabela XLSX real declara consumo POR TENSAO — o transporte
+        InmetroXlsxClient injeta ``source_id`` explicito
+        (``marca|modelo|tensao``) para nao colidir duas variantes de
+        tensao do MESMO modelo na chave UNIQUE(source, external_id).
+        Um ``N DE REGISTRO`` pode cobrir varios modelos, logo NAO e
+        usado como identidade (e proveniencia, nao chave).
+        """
+        explicit = InmetroAdapter._extract_first(raw, _SOURCE_ID_FIELDS)
+        return explicit or f"{brand}|{model}"
+
     @staticmethod
     def _extract_first(row: dict[str, Any], fields: tuple[str, ...]) -> str | None:
         """Primeiro campo nao-vazio dentre os alias aceitos."""
@@ -289,16 +358,35 @@ class InmetroAdapter:
         return None
 
     @staticmethod
-    def _extract_kwh_month(row: dict[str, Any]) -> Decimal | None:
+    def _energy_declaration(
+        row: dict[str, Any],
+    ) -> tuple[Decimal | None, Decimal | None, str | None]:
+        """Retorna ``(kWh/ano, valor bruto, unidade original)``.
+
+        * Valor ANUAL explicito -> usado tal qual (``"kWh/ano"``); o x12
+          NUNCA e aplicado em cima de um valor ja anual.
+        * Apenas valor MENSAL -> ``x12`` exatamente uma vez
+          (``"kWh/mes"``); o bruto mensal fica em ``raw_energy_value``.
+        * Nenhum -> ``(None, None, None)`` — registro descartado pelo
+          chamador, sem inventar consumo.
+        """
+        for field in _ANNUAL_KWH_FIELDS:
+            if field in row:
+                annual = _to_decimal(row[field], field)
+                if annual is not None:
+                    return annual, annual, "kWh/ano"
         for field in _KWH_MONTH_FIELDS:
             if field in row:
-                return _to_decimal(row[field], field)
-        return None
+                monthly = _to_decimal(row[field], field)
+                if monthly is not None:
+                    annual = InmetroAdapter._annual_from_monthly(monthly)
+                    return annual, monthly, "kWh/mes"
+        return None, None, None
 
     @staticmethod
     def _annual_from_monthly(kwh_month: Decimal) -> Decimal:
-        """kWh/mes -> kWh/ano (x12). Arredondado a 2 casas como o resto
-        do pipeline (Decimal, sem float)."""
+        """kWh/mes -> kWh/ano (x12, exatamente UMA vez por registro).
+        Arredondado a 2 casas como o resto do pipeline (Decimal, sem float)."""
         annual = kwh_month * _MONTHS_PER_YEAR
         return annual.quantize(Decimal("0.01"))
 

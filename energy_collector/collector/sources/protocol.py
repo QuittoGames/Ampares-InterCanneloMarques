@@ -137,7 +137,6 @@ class SourceAdapter(Protocol):
         *,
         dataset_id: str,
         category: str,
-        tariff_per_kwh: Decimal | None = None,
     ) -> Any:
         """Linha bruta -> :class:`NormalizedProduct` canonico (ou None).
 

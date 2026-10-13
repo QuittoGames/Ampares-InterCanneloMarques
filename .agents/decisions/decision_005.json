@@ -1,0 +1,20 @@
+{
+  "id": "005",
+  "date": "14:35:00/13/10/2026",
+  "type": {
+    "area": "architecture"
+  },
+  "title": "HoursProvider removido; HoursService com Hday = Hactive + Hstandby",
+  "status": "DECISION",
+  "actor": "DEV",
+  "context": "A anotacao @HoursProvider (annotation sobre getters de RegistryUserProduct) foi substituida por uma interface de servico de calculo de horas.",
+  "decision": "1) Remover a ideia de HoursProvider: anotacoes @HoursProvider removidas de RegistryUserProduct e arquivo interfaces/HoursProvider.java DELETADO. 2) Criar interface interfaces/HoursService.java com funcs de calculo de horas, implementada por um @Service normal (HoursServiceImpl). 3) Formula: Hday = Hactive + Hstandby (horas totais diarias = horas ativas + horas de standby).",
+  "consequences": [
+    "RegistryUserProduct.java sem anotacoes customizadas de horas; entidade permanece anemica.",
+    "HoursService e a fonte unica da regra de soma de horas diarias; hub ConsumptionCalculator/ConsumeMetricsService delegam a ele quando precisarem do total diario.",
+    "hoursStandby null NAO vira zero (regra SPEC 5): soma com standby ausente = estado nao calculavel (Optional.empty).",
+    "Soma Hactive + Hstandby deve respeitar o limite diario de 24h; acima disso = inconsistencia sinalizada explicitamente.",
+    "Nome do teste antigo ConsumptionCalculatorTest.calculate_zero_quandoHoursProviderNull referencia o conceito morto (renomear quando o motor landar)."
+  ],
+  "open_questions": []
+}

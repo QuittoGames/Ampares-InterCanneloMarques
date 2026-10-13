@@ -9,10 +9,10 @@ classe concreta (SocrataClient, WattSimpleClient, ...).
 Roteamento por ``adapter.source_type`` (a decisao de tabela e da FONTE,
 nao do chamador):
 
-* ``"individual_product"`` → :func:`upsert_batch` (tabela ``product``) +
-  :func:`upsert_label_classes` (ENCE, quando a fonte declara — ex.
+* ``"individual_product"`` → :func:`insert_batch` (tabela ``product``, INSERT-ONLY) +
+  :func:`insert_label_classes` (ENCE, quando a fonte declara — ex.
   INMETRO).
-* ``"aggregate"`` → :func:`upsert_aggregates` (tabela
+* ``"aggregate"`` → :func:`insert_aggregates` (tabela
   ``aggregate_reference``) — dados anonimos (IEA), nunca ``product``.
 
 Diferencas deliberadas em relacao ao legado:
@@ -34,10 +34,10 @@ import logging
 from typing import TYPE_CHECKING
 
 from ..database import (
-    upsert_aggregates,
-    upsert_batch,
-    upsert_label_classes,
-    upsert_source_observations,
+    insert_aggregates,
+    insert_batch,
+    insert_label_classes,
+    insert_source_observations,
 )
 from ..exceptions import PersistenceError
 from ..models import AggregateRecord, NormalizedProduct, Product, merge_products
@@ -121,12 +121,12 @@ class MultiSourceCollectionService:
             return rep
 
         logger.info(
-            "[%s] %s — recebidos=%d inseridos=%d atualizados=%d descartados=%d",
+            "[%s] %s — recebidos=%d inseridos=%d duplicatas=%d descartados=%d",
             dataset_id,
             category,
             rep.received,
             rep.inserted,
-            rep.updated,
+            rep.duplicates,
             rep.discarded,
         )
         return rep
@@ -244,12 +244,12 @@ class MultiSourceCollectionService:
         if not products:
             return
         canonical_products = merge_products(products)
-        stats = upsert_batch(self.pool, canonical_products)
+        stats = insert_batch(self.pool, canonical_products)
         rep.inserted += stats.inserted
-        rep.updated += stats.updated
-        upsert_source_observations(self.pool, products)
+        rep.duplicates += stats.duplicates
+        insert_source_observations(self.pool, products)
         # ENCE é projetada no produto canônico para manter o contrato Spring.
-        upsert_label_classes(self.pool, canonical_products)
+        insert_label_classes(self.pool, canonical_products)
 
     def _persist_aggregates(
         self,
@@ -260,7 +260,7 @@ class MultiSourceCollectionService:
     ) -> None:
         if not aggregates:
             return
-        written = upsert_aggregates(self.pool, aggregates)
+        written = insert_aggregates(self.pool, aggregates)
         rep.inserted += written
 
 

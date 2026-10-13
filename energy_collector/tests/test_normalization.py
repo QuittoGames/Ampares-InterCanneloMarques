@@ -6,9 +6,11 @@ Cobre o contrato exigido:
 * Valores vazios: ``""``, ``null``, ``None``, ``"NULL"`` -> None.
 * Strings: whitespace colapsado, vazias -> None.
 * Campos de energia: equivalencias obvias de nomes.
-* Derivados: ``equivalent_hours_year`` a partir de ``avg_power_w`` +
-  ``annual_energy_kwh``; divisao por zero tratada (``power=0``).
-* Rastreabilidade: SOURCE (``raw_*``) separado de DERIVED.
+* Rastreabilidade: SOURCE (``raw_*``, valor/periodo brutos, tensao
+  declarada) preservado sem alteracao.
+* Sem engine de formulas no coletor: horas/custos/consumo derivado sao
+  responsabilidade do Java (Banco de Formulas) — o normalizer NAO os
+  calcula (spec secao 5).
 """
 
 from __future__ import annotations
@@ -20,12 +22,6 @@ import pytest
 from collector.models import NormalizedProduct, Product
 from collector.normalization import (
     _to_decimal,
-    compute_derived,
-    compute_equivalent_hours_year,
-    compute_equivalent_hours_year_day,
-    compute_estimated_cost,
-    compute_estimated_daily_energy,
-    compute_standby_energy_kwh,
     normalize,
     normalize_record,
 )
@@ -125,6 +121,38 @@ class TestEnergyFieldEquivalents:
         assert rec is not None
         assert rec.avg_power_w == Decimal("120.0")
 
+    def test_ignore_sleep_and_off_power_for_avg_power(self) -> None:
+        # REGRESSAO (bug real KIP 700): power_in_sleep_w (0.92W) NAO e a
+        # potencia media de uso — a potencia real de uma impressora grande
+        # e 600-1500W e nao e publicada. Sem coluna de uso -> None.
+        raw = {
+            "pd_id": "2394549",
+            "brand_name": "KIP",
+            "model_name": "KIP 700",
+            "power_in_sleep_w": "0.92",
+            "power_in_standby_w": "0.15",
+            "dfe_sleep_mode_power_w": "1.50",
+            "typical_electricity_consumption_tec_kwh_yr": "83.2",
+        }
+        rec = normalize_record(raw, "t2v6-g4nf", "imaging_equipment")
+        assert rec is not None
+        assert rec.avg_power_w is None  # sleep/standby NUNCA e potencia de uso
+        assert rec.annual_energy_kwh == Decimal("83.2")
+
+    def test_ignore_weekly_tec_as_annual_energy(self) -> None:
+        # REGRESSAO (bug real): tec_kwh_wk (SEMANAL) casado como anual
+        # falsificava o valor em ~52x (0.6 kWh/wk -> 0.6 kWh/ano).
+        raw = {
+            "pd_id": "X1",
+            "brand_name": "ACME",
+            "model_name": "M1",
+            "power_in_sleep_w": "0.9",
+            "dfe_typical_electricity_consumption_tec_kwh_wk": "0.6",
+        }
+        rec = normalize_record(raw, "unknown-ds", "custom")
+        assert rec is not None
+        assert rec.annual_energy_kwh is None  # semanal NAO e anual
+
 
 # ---------------------------------------------------------------------------
 # Campos desconhecidos -> None (nao descarta o registro)
@@ -147,56 +175,14 @@ class TestUnknownFields:
 
 
 # ---------------------------------------------------------------------------
-# Derivados: horas equivalentes, energia diaria, custo
+# Proveniencia de fonte: valores brutos, tensao e sem engine de formulas
 # ---------------------------------------------------------------------------
 
 
-class TestDerived:
-    def test_compute_equivalent_hours_year(self) -> None:
-        # H_eq = 1000 * 100 kWh / 100 W = 1000 h/ano
-        hours = compute_equivalent_hours_year(Decimal("100"), Decimal("100"))
-        assert hours == Decimal("1000.0")
-
-    def test_avoid_division_by_zero(self) -> None:
-        assert compute_equivalent_hours_year(Decimal("0"), Decimal("100")) is None
-        assert compute_equivalent_hours_year(None, Decimal("100")) is None
-        assert compute_equivalent_hours_year(Decimal("100"), None) is None
-
-    def test_compute_daily_hours_and_energy(self) -> None:
-        day = compute_equivalent_hours_year_day(Decimal("365"))
-        assert day == Decimal("1.0")
-        daily = compute_estimated_daily_energy(Decimal("365"))
-        assert daily == Decimal("1.0")
-
-    def test_compute_cost_from_explicit_tariff(self) -> None:
-        cost = compute_estimated_cost(Decimal("100"), Decimal("0.60"))
-        assert cost == Decimal("60.00")
-        # Tarifa ausente -> None (nunca assumida arbitrariamente).
-        assert compute_estimated_cost(Decimal("100"), None) is None
-
-    def test_compute_standby_energy_kwh(self) -> None:
-        # E_standby = 10 W * (24 - 8 h) * 30 dias / 1000 = 4.8 kWh
-        standby = compute_standby_energy_kwh(Decimal("10"), Decimal("8"), Decimal("30"))
-        assert standby == Decimal("4.8")
-
-    def test_compute_standby_energy_kwh_invalid_inputs(self) -> None:
-        # Qualquer entrada ausente -> None.
-        assert compute_standby_energy_kwh(None, Decimal("8"), Decimal("30")) is None
-        assert compute_standby_energy_kwh(Decimal("10"), None, Decimal("30")) is None
-        assert compute_standby_energy_kwh(Decimal("10"), Decimal("8"), None) is None
-        # H_ativo fora de [0, 24] -> None (standby negativo impossivel).
-        assert (
-            compute_standby_energy_kwh(Decimal("10"), Decimal("25"), Decimal("30"))
-            is None
-        )
-        # Periodo sem dias -> None.
-        assert (
-            compute_standby_energy_kwh(Decimal("10"), Decimal("8"), Decimal("0"))
-            is None
-        )
-
+class TestSourceProvenance:
     def test_extract_standby_power_from_record(self) -> None:
         # O campo de standby deve ser reconhecido e extraido (nao ignorado).
+        # Ele vai para a OBSERVACAO de origem — nao para product (spec 1/7).
         raw = {
             "pd_id": "X1",
             "brand_name": "ACME",
@@ -209,30 +195,7 @@ class TestDerived:
         assert rec is not None
         assert rec.avg_power_w == Decimal("120.0")
         assert rec.standby_power_w == Decimal("0.5")
-        # E chega ao compute_derived (rastreabilidade).
         assert rec.product.standby_power_w == Decimal("0.5")
-
-    def test_populate_derived_from_record(self) -> None:
-        raw = {
-            "pd_id": "X1",
-            "brand_name": "ACME",
-            "model_name": "M1",
-            "power_watts": "100",
-            "annual_energy_use_kwh": "100",
-        }
-        rec = normalize_record(
-            raw, "unknown-ds", "custom", tariff_per_kwh=Decimal("0.60")
-        )
-        assert rec is not None
-        assert rec.equivalent_hours_year == Decimal("1000.0")
-        assert rec.equivalent_hours_year_day == compute_equivalent_hours_year_day(
-            rec.equivalent_hours_year
-        )
-        assert rec.estimated_daily_energy_kwh == compute_estimated_daily_energy(
-            rec.annual_energy_kwh
-        )
-        assert rec.estimated_cost == Decimal("60.00")
-        assert rec.tariff_per_kwh == Decimal("0.60")
 
     def test_keep_raw_source_data_separate(self) -> None:
         raw = {
@@ -247,10 +210,59 @@ class TestDerived:
         # SOURCE data preservado como veio (Decimal do valor bruto).
         assert rec.raw_power == Decimal("150.0")
         assert rec.raw_annual_energy == Decimal("200.0")
-        # SOURCE != DERIVED semanticamente distintos.
+        # Valor bruto de energia + unidade/periodo originais (spec 5).
+        assert rec.product.raw_energy_value == Decimal("200.0")
+        assert rec.product.raw_energy_unit == "kWh/year"
         assert rec.product.avg_power_w == rec.raw_power
         assert isinstance(rec.product, Product)
         assert isinstance(rec, NormalizedProduct)
+
+    def test_no_formula_engine_in_collector(self) -> None:
+        # Banco de Formulas (horas, custos, consumo, tarifa) e do Java.
+        # O coletor nao expoe engine de formulas concorrente (spec 5).
+        import inspect
+
+        import collector.normalization as normalization
+
+        for removed in (
+            "compute_derived",
+            "compute_equivalent_hours_year",
+            "compute_equivalent_hours_year_day",
+            "compute_estimated_daily_energy",
+            "compute_estimated_cost",
+            "compute_standby_energy_kwh",
+        ):
+            assert not hasattr(normalization, removed), removed
+        assert "tariff_per_kwh" not in inspect.signature(normalize_record).parameters
+
+    def test_voltage_declaration_is_provenance_only(self) -> None:
+        raw = {
+            "pd_id": "X1",
+            "brand_name": "ACME",
+            "model_name": "M1",
+            "annual_energy_use_kwh": "200",
+            "voltage": "220 V",
+        }
+        rec = normalize_record(raw, "unknown-ds", "custom")
+        assert rec is not None
+        assert rec.product.voltage_raw == "220 V"
+        assert rec.product.voltage_kind == "monovolt"
+        assert rec.product.voltage_min_v == Decimal("220")
+        assert rec.product.voltage_max_v == Decimal("220")
+
+    def test_missing_voltage_is_unknown_never_inferred(self) -> None:
+        raw = {
+            "pd_id": "X1",
+            "brand_name": "ACME",
+            "model_name": "M1",
+            "annual_energy_use_kwh": "200",
+        }
+        rec = normalize_record(raw, "unknown-ds", "custom")
+        assert rec is not None
+        assert rec.product.voltage_kind == "unknown"
+        assert rec.product.voltage_raw is None
+        assert rec.product.voltage_min_v is None
+        assert rec.product.voltage_max_v is None
 
 
 # ---------------------------------------------------------------------------

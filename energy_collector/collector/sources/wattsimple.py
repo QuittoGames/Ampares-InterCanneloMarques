@@ -254,7 +254,6 @@ class WattSimpleAdapter:
         *,
         dataset_id: str,
         category: str,
-        tariff_per_kwh: Decimal | None = None,
     ) -> Product | None:
         """Linha generica -> :class:`Product` com ``is_generic=True``.
 

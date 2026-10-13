@@ -1,0 +1,18 @@
+{
+  "id": "003",
+  "date": "13:55:00/13:10:26",
+  "type": {
+    "area": "architecture"
+  },
+  "title": "User sem colecao; lista de produtos registrados entregue pelo MetricsService",
+  "status": "DECISION",
+  "actor": "DEV",
+  "context": "Durante o design do hub MetricsService, DEV considerou adicionar um atributo Array de produtos registrados ao model User, e revertê-lo imediatamente.",
+  "decision": "O model User NAO recebe nenhum novo atributo (sem colecao @OneToMany de RegistryUserProduct). A lista de produtos registrados do usuario e entregue pelo MetricsService hub (metodo ja existente na interface: getProductRegistry(Client user) -> List<RegistryUserProduct>).",
+  "consequences": [
+    "Models/User.java permanece enxuto; nenhum mapeamento de colecao adicionado.",
+    "RegistryUserService/UserService nao devem expor colecoes na entidade User.",
+    "Metricas e listagem de registros sao responsabilidade do hub MetricsService (Human Scope do DEV)."
+  ],
+  "open_questions": []
+}

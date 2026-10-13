@@ -1,0 +1,21 @@
+{
+  "id": "004",
+  "date": "14:20:00/13/10/2026",
+  "type": {
+    "area": "api-contract"
+  },
+  "title": "Contrato null/empty/throw do MetricsService e diretrizes de implementacao (streams + statics)",
+  "status": "DECISION",
+  "actor": "DEV",
+  "context": "DEV definiu o contrato do novo hub ConsumeMetricsService (interface MetricsService atualizada) e o estilo de implementacao das formulas.",
+  "decision": "1) Nunca retornar null: getProductsRegistrys retorna lista possivelmente vazia (ausencia de registros e resultado valido, nao erro); cada calculo decide entre Optional.empty() ou excecao de dominio NoRegisteredProductsException quando a regra exigir pelo menos um produto. 2) Implementacao preferindo java.stream() para agregacoes/filtros/ranking. 3) Metodos de calculo puro sao static (ConsumptionCalculator e helpers privados do hub nao dependem de estado). 4) Helpers calculateDailyKwh/calculateAnnualKwh delegam ao motor (zero formula duplicada no hub). 5) Standby nao calculavel (Optional.empty) enquanto Product.avg_idle_energy_for_hour nao tiver dado confiavel; nunca usar potencia ativa. 6) Consumo anual do fabricante (Product.annualEnergyKwh) nunca e multiplicado por 365.",
+  "consequences": [
+    "ConsumeMetricsService e testes de metricas sao responsabilidade delegada aos agentes quando o DEV solicitar (Human Scope flexibilizado por delegation explicita).",
+    "Interface MetricsService assinatura atual: calculate, calculateAverageEnergyByUser, calculateMostConsumerProduct, calculateMostConsumerProductByCategory, calculateStandbyConsumeAvg, calculateStandbyConsumesForProduct, getProductsRegistrys, avg.",
+    "Unidades explicitas: daily retorna kWh/dia, annual retorna kWh/ano, standby methods retornam valor ANUAL."
+  ],
+  "open_questions": [
+    "avg(OperationValue, List<?>) curinga impede soma tipada — substituir por metodo tipado se o DEV autorizar",
+    "Calcular R$/MWh da tarifa vale para qualquer distribuidora Enel: 1 MWh = 1000 kWh (conversao universal)"
+  ]
+}

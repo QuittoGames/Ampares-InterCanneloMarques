@@ -1,0 +1,18 @@
+{
+  "id": "002",
+  "date": "13:41:00/13:10:26",
+  "type": {
+    "area": "workflow"
+  },
+  "title": "Divisao de escopo DEV x agentes na refactorizacao energetica",
+  "status": "DECISION",
+  "actor": "DEV",
+  "context": "Refactoracao do registro de produtos e motor unificado de consumo energetico executada com multiplas instancias de code-implementer, com o DEV reescrevendo o ecossistema Metrics em paralelo.",
+  "decision": "DEV e dono do ecossistema Metrics (interface MetricsService, Services/MetricsService, ConsumeMetricsService, MetricsController e testes de metricas). Os agentes implementam o resto: tarifa Enel (@ConfigurationProperties + TariffService), ConsumptionCalculator corrigido conforme Formula Bank, ProductForRegistryConverter, RegistryUserService/DTO/controller, validacoes, exceptions e testes (cenarios A/B/C). Interfaces podem ser ajustadas pelos agentes pois o DEV as consome mesmo sem valores concretos.",
+  "consequences": [
+    "Arquivos em Human Scope DEV nao podem ser modificados pelos code-implementer sem delegacao explicita.",
+    "Conflitos de compilacao transitorios possiveis enquanto o DEV edita (ex.: interface MetricsService movida de Models/interfaces para interfaces/ com package declarado antigo).",
+    "Suite baseline: 86 testes verdes antes das mudancas (execucao em 13/10/2026)."
+  ],
+  "open_questions": []
+}

@@ -1,0 +1,21 @@
+{
+  "id": "001",
+  "date": "13:40:00/13:10:26",
+  "type": {
+    "area": "architecture"
+  },
+  "title": "Hub unificado de calculos no ConsumeMetricsService",
+  "status": "DECISION",
+  "actor": "DEV",
+  "context": "SPEC de refactorizacao exige motor unificado de formulas (ConsumptionCalculator). DEV esta reescrevendo o ecossistema Metrics e decidiu onde a matematica central deve viver.",
+  "decision": "A classe ConsumeMetricsService (implementadora da interface MetricsService) deve ser o Hub unico de calculos: todas as formulas do Formula Bank da SPEC sao calculadas la, via funcoes intermediarias (ex.: MetricsService.calculate -> call -> calculateAvgHour() -> calculo), absorvendo as formulas dos arquivos separados ConsumptionCalculator e RegistryCalculator. Acoplamento aceito conscientemente pelo DEV.",
+  "consequences": [
+    "ConsumptionCalculator e RegistryCalculator sao alvo de absorcao pelo hub; nao devem manter formulas proprias divergentes.",
+    "Interface MetricsService e o ecossistema Metrics (ConsumeMetricsService, MetricsController, testes de metricas) ficam sob Human Scope do DEV nesta rodada.",
+    "A SPEC geral (secao 4) deve ser emendada: o hub e a classe implementadora de MetricsService, nao ConsumptionCalculator isolado.",
+    "TariffService/configuracao da tarifa Enel permanece componente separado (config, nao formula) e e consumido pelo hub."
+  ],
+  "open_questions": [
+    "ConsumptionCalculator sobrevive como camada primitiva delegada pelo hub ou e eliminado apos a absorcao?"
+  ]
+}

@@ -198,14 +198,28 @@ a {
     text-align: center;
 }
 
+/* Toggle da logo: <button type="button"> que revela/oculta a área manual de ID */
 .auth__brand {
     display: inline-flex;
     align-items: center;
     gap: var(--space-2);
-    margin-bottom: var(--space-8);
+    margin-bottom: calc(var(--space-8) - var(--space-1));
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
     font-weight: 600;
     font-size: var(--text-lg);
     color: var(--text);
+    transition: color var(--duration) var(--ease),
+        box-shadow var(--duration) var(--ease);
+}
+
+.auth__brand:hover {
+    color: var(--accent-soft);
+}
+
+/* Estado expandido: anel/acento sutil (reusa o token --shadow-glow) */
+.auth__brand[aria-expanded='true'] {
+    box-shadow: var(--shadow-glow);
 }
 
 .auth__brand-mark {
@@ -230,7 +244,7 @@ a {
 .auth__subtitle {
     margin: 0 0 var(--space-8);
     font-size: var(--text-sm);
-    color: var(--text-muted);
+    color: var(--text-soft);
 }
 
 .auth__form {
@@ -295,6 +309,23 @@ a {
 .auth__button:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+}
+
+/* Linha do ID manual: revelável pela logo; oculta por padrão no fluxo de feira.
+   [hidden] explícito porque display:flex vence o hidden nativo. */
+.auth__id-row {
+    display: flex;
+    align-items: stretch;
+    gap: var(--space-2);
+}
+
+.auth__id-row[hidden] {
+    display: none;
+}
+
+.auth__id-row .auth__input {
+    flex: 1;
+    min-width: 0;
 }
 
 .auth__message {
@@ -855,7 +886,7 @@ a {
 .message {
     min-height: 20px;
     font-size: var(--text-sm);
-    color: var(--text-muted);
+    color: var(--text-soft);
     margin: var(--space-2) 0 0;
 }
 
@@ -966,7 +997,7 @@ select.field-input option {
 
 .results__empty {
     margin: 0;
-    color: var(--text-muted);
+    color: var(--text-soft);
     font-size: var(--text-sm);
     text-align: center;
     padding: var(--space-6) 0;

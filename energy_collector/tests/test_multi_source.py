@@ -86,17 +86,21 @@ class TestCollectWattSimple:
             UPSERT_AGGREGATE_SQL_SNIPPET not in sql for sql in executed_sqls(conn)
         )
 
-    def test_writes_is_generic_true(self) -> None:
+    def test_writes_generic_flag_on_observation_not_product(self) -> None:
         pool, conn, _cur = make_fake_pool(existing=0)
         service = MultiSourceCollectionService(pool=pool)
         adapter = WattSimpleAdapter(client=WattSimpleClient(csv_content=WS_CSV))
 
         service.collect(adapter, dataset_id=WS_CODE, category="wattsimple")
 
-        # A tabela product agora representa o produto canônico global;
-        # genericidade pertence à observação WattSimple.
-        rows = executemany_rows(conn)[0]
-        assert all(row[-1] is False for row in rows)
+        # A tabela product e o contrato canonico de 8 colunas de
+        # Product.java — sem is_generic/standby (secao 1 da spec).
+        product_rows = executemany_rows(conn)[0]
+        assert all(len(row) == 8 for row in product_rows)
+        # A genericidade vive na observacao de origem (coluna is_generic).
+        observation_rows = executemany_rows(conn)[1]
+        assert observation_rows
+        assert all(row[10] is True for row in observation_rows)
 
     def test_limit_respects_smoke_test(self) -> None:
         pool, _conn, _cur = make_fake_pool(existing=0)
@@ -290,12 +294,14 @@ class TestReportParity:
         rep = service.collect(adapter, dataset_id=WS_CODE, category="wattsimple")
 
         # Mesmos campos do CategoryReport do legado (FR-011).
+        # Politica INSERT-ONLY: "updated" virou "duplicates" (linhas
+        # ignoradas por ON CONFLICT DO NOTHING).
         for attr in (
             "category",
             "dataset_id",
             "received",
             "inserted",
-            "updated",
+            "duplicates",
             "discarded",
             "status",
         ):

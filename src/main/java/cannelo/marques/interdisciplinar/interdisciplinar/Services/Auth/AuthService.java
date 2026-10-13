@@ -1,7 +1,6 @@
 package cannelo.marques.interdisciplinar.interdisciplinar.Services.Auth;
 
 import java.util.Objects;
-import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 
@@ -23,6 +22,20 @@ public class AuthService{
         this.userService = userService;
     }
 
+    /**
+     * Autentica o usuário pelo id enviado pelo cliente.
+     *
+     * <p>Se o usuário ainda não existir, ele é <b>criado com o MESMO id
+     * informado</b> — o id que o cliente conhece é sempre o id real no
+     * banco. Em ambos os casos (novo ou existente) o cookie de sessão
+     * {@code user_id} é definido.
+     *
+     * @param idString id do usuário (numérico, como texto)
+     * @param request requisição atual (reservado para validações futuras)
+     * @param response resposta na qual o cookie de sessão é setado
+     * @throws NumberFormatException se {@code idString} não for numérico
+     * @throws UserNotFoundException se a criação do usuário falhar
+     */
     public void login(String idString, HttpServletRequest request, HttpServletResponse response) throws UserNotFoundException, NumberFormatException{
         Objects.requireNonNull(idString);
         Objects.requireNonNull(request);
@@ -40,7 +53,8 @@ public class AuthService{
         }
 
         if (!userService.userExists(new User(id))){
-            throw new UserNotFoundException("User not found with the provided ID");
+            userService.create(id).orElseThrow(() ->
+                    new UserNotFoundException("Unable to register user with the provided ID"));
         }
 
         cookieService.set(response, idString, 60 * 60 * 24 * 7);
@@ -51,6 +65,16 @@ public class AuthService{
         cookieService.clear(response);
     }
 
+    /**
+     * Registra um usuário novo com id gerado pelo banco.
+     *
+     * <p>API de registro independente — o fluxo de login NÃO depende dela:
+     * {@link #login(String, HttpServletRequest, HttpServletResponse)}
+     * cria o usuário com o id do cliente quando necessário.
+     *
+     * @return o usuário criado
+     * @throws UserNotFoundException se a criação falhar
+     */
     public User register() throws UserNotFoundException {
         return userService.create().orElseThrow(() ->
                 new UserNotFoundException("Unable to register user"));

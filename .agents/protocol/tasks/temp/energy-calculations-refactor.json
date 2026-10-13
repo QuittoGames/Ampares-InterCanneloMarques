@@ -1,0 +1,109 @@
+{
+  "task": "Refatoracao dos calculos energeticos (consumo, horas, metricas por usuario)",
+  "generated_at": "2026-10-13T13:31:47.804081+00:00",
+  "base_report": ".agents/protocol/docs/codebase-explorer.json",
+  "git": {
+    "branch": "main",
+    "commit": "c70d48e9907344607d52bc2768338c061bb02747"
+  },
+  "scope": [
+    "Services/Consumption",
+    "Services/Registry",
+    "Services/User",
+    "Controllers",
+    "DTO",
+    "Models",
+    "testes de calculo"
+  ],
+  "relevant_files": [
+    "src/main/java/cannelo/marques/interdisciplinar/interdisciplinar/Services/Consumption/ConsumptionCalculator.java",
+    "src/main/java/cannelo/marques/interdisciplinar/interdisciplinar/Services/Registry/RegistryCalculator.java",
+    "src/main/java/cannelo/marques/interdisciplinar/interdisciplinar/Services/Registry/RegistryUserService.java",
+    "src/main/java/cannelo/marques/interdisciplinar/interdisciplinar/Services/User/ConsumeMetricsService.java",
+    "src/main/java/cannelo/marques/interdisciplinar/interdisciplinar/Models/interfaces/MetricsService.java",
+    "src/main/java/cannelo/marques/interdisciplinar/interdisciplinar/Controllers/MetricsController.java",
+    "src/main/java/cannelo/marques/interdisciplinar/interdisciplinar/Controllers/RegistryUserProductController.java",
+    "src/main/java/cannelo/marques/interdisciplinar/interdisciplinar/DTO/RegistryUserProductDTO.java",
+    "src/main/java/cannelo/marques/interdisciplinar/interdisciplinar/Models/RegistryUserProduct.java",
+    "src/main/java/cannelo/marques/interdisciplinar/interdisciplinar/Models/Product.java",
+    "src/main/resources/static/app.js (labels de metricas, 263-272)",
+    "migrations/create.sql",
+    "migrations/seed.sql:36-45"
+  ],
+  "flows": [
+    {
+      "name": "Derivacao de horas no registro",
+      "steps": [
+        "POST /registryUserProducts",
+        "RegistryUserProductController.create (quantity<=0 -> 1)",
+        "RegistryUserService.createRegistry:63-93 (input ?? RegistryCalculator ?? fallback ConsumptionCalculator)",
+        "save registry_user_product"
+      ],
+      "type": "FACT",
+      "confidence": "HIGH"
+    },
+    {
+      "name": "Metricas",
+      "steps": [
+        "app.js:263-272 -> POST /api/metrics/users/*",
+        "MetricsController",
+        "ConsumeMetricsService (5 metodos)",
+        "ConsumptionCalculator.calculate(hoursProvider)",
+        "BigDecimal JSON number -> label kWh"
+      ],
+      "evidence": "relatorio global: calculations.formulas",
+      "type": "FACT",
+      "confidence": "HIGH"
+    }
+  ],
+  "dependencies": [
+    "java.math.BigDecimal/RoundingMode (nunca double)",
+    "JPA/Hibernate ddl-auto=update",
+    "Postgres local localhost:5432/neondb",
+    "JUnit via ./mvnw test"
+  ],
+  "tests": [
+    {
+      "file": "src/test/java/.../Services/Consumption/ConsumptionCalculatorTest.java",
+      "count": "18 @Test",
+      "role": "fixa formula kWh e horas/dia"
+    },
+    {
+      "file": "src/test/java/.../Services/Registry/RegistryCalculatorTest.java",
+      "count": "16 @Test",
+      "role": "fixa H_eq, H/dia, standby"
+    },
+    {
+      "file": "src/test/java/.../Services/Registry/RegistryUserServiceTest.java",
+      "count": "6 @Test",
+      "role": "resolucao de horas na criacao"
+    },
+    {
+      "file": "src/test/java/.../Services/User/ConsumeMetricsServiceTest.java",
+      "count": "11 @Test",
+      "role": "metricas total/avg/standby/most-consumer"
+    },
+    {
+      "file": "src/test/java/.../Controllers/MetricsControllerTest.java",
+      "count": "18 @Test",
+      "role": "contratos HTTP"
+    }
+  ],
+  "configuration": [
+    "application.properties (porta 8081, Postgres, ddl-auto=update; SEM tarifas)",
+    "migrations/create.sql",
+    "migrations/seed.sql:36-45 thresholds legados"
+  ],
+  "documentation": [
+    "docs/data_normalizate.md",
+    "docs/code-review-analysis.md",
+    "docs/arquiteture.drawio (parcialmente obsoleto)",
+    "energy_collector/collector/normalization.py (fonte original das formulas)"
+  ],
+  "uncertainties": [
+    "UNIDADE: endpoints dizem 'anual' mas a formula nao multiplica por 365 - rotulo ou formula? QUESTION TO DEV antes de refatorar.",
+    "Nenhuma tarifa/custo em Java - se custo entrar na refatoracao, fonte da tarifa exige decisao do DEV (Python exige explicita, DEFAULT None). QUESTION TO DEV.",
+    "Testes nao executados nesta exploracao (./mvnw test)."
+  ],
+  "confidence": "HIGH"
+}

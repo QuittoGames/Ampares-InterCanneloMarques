@@ -17,36 +17,44 @@
     <!-- ============================================================ -->
     <section id="login-section" class="auth" aria-label="Login">
         <div class="auth__card">
-            <div class="auth__brand">
+            <button
+                type="button"
+                id="auth-id-toggle"
+                class="auth__brand"
+                aria-expanded="false"
+                aria-controls="user-id-row"
+                aria-label="Gerenciador de Gastos Energéticos — abrir área restrita para digitar ID manualmente"
+            >
                 <span class="auth__brand-mark" aria-hidden="true">
                     <img class="icon" src="assets/icons/icons.png" alt="ícone do sistema">
                </span>
                 <span>Gerenciador de Gastos Energéticos</span>
-           </div>
+           </button>
 
             <h1 class="auth__title">Seu consumo,<br>sob controle</h1>
-            <p class="auth__subtitle">Entre com seu ID para acompanhar seu consumo de energia</p>
+            <p class="auth__subtitle">Veja quanto seus aparelhos consomem de energia.</p>
 
             <form id="login-form" class="auth__form" autocomplete="off">
                 <label class="visually-hidden" for="user-id">ID do usuário</label>
-                <input
-                    id="user-id"
-                    class="auth__input"
-                    name="userId"
-                    type="number"
-                    inputmode="numeric"
-                    min="1"
-                    placeholder="Digite seu ID"
-                    aria-describedby="login-message"
-                    required
-                >
+                <div class="auth__id-row" id="user-id-row" hidden>
+                    <input
+                        id="user-id"
+                        class="auth__input"
+                        name="userId"
+                        type="number"
+                        inputmode="numeric"
+                        min="1"
+                        placeholder="Digite seu ID"
+                        aria-describedby="login-message"
+                    >
+                </div>
                 <button type="submit" class="auth__button">
-                    Continuar
+                    Começar agora
                     <span aria-hidden="true">→</span>
                </button>
            </form>
 
-            <p id="login-message" class="auth__message" role="status" aria-live="polite">
+            <p id="login-message" class="auth__message" role="status" aria-live="polite"></p>
        </div>
    </section>
 
@@ -60,7 +68,7 @@
                 <span>Gerenciador de Gastos Energéticos</span>
            </div>
             <div class="app-header__user">
-                <span class="muted">usuário</span>
+                <span class="muted">ID</span>
                 <span id="current-user-id" class="app-header__user-id">—</span>
                 <button id="logout-button" class="app-header__logout" type="button">
                     sair <span aria-hidden="true">→</span>
@@ -80,13 +88,7 @@
                  <form id="registry-form" class="config__form" autocomplete="off">
                      <div class="config__field">
                          <label class="config__label" for="product-select">Produto cadastrado</label>
-                         <input
-                             id="product-search"
-                             class="field-input"
-                             type="search"
-                             placeholder="Buscar por nome, marca, modelo ou categoria"
-                             autocomplete="off"
-                         >
+
                          <select id="product-select" name="productId" class="field-input">
                             <option value="">Carregando produtos…</option>
                        </select>
@@ -143,7 +145,6 @@
                                 min="0"
                                 step="0.1"
                                 class="field-input"
-                                placeholder="Deixe vazio para calcular"
                             >
                        </div>
                    </div>

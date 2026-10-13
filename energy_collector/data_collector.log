@@ -408,3 +408,15 @@ psycopg_pool.PoolTimeout: couldn't get a connection after 30.00 sec
 2026-09-09 19:14:09,263 INFO  wattsimple_tabela_de_potenci wattsimple_appliance_wattage       143        20         0           0  ok
 2026-09-09 19:14:09,263 INFO  ------------------------------------------------------------------------------
 2026-09-09 19:14:09,263 INFO  TOTAL: recebidos=143 inseridos=20 atualizados=0 descartados=0 | 5.3s
+2026-10-13 16:36:45,335 INFO  Socrata: anonimo | rate limit: 4.0 req/s
+2026-10-13 16:36:46,518 INFO  ==============================================================================
+2026-10-13 16:36:46,519 INFO  categoria                    dataset     recebidos inseridos   duplic. descartados  status
+2026-10-13 16:36:46,520 INFO  inmetro_pbe_refrigeradores_x inmetro_refrigerators       542         2         1           0  ok
+2026-10-13 16:36:46,521 INFO  ------------------------------------------------------------------------------
+2026-10-13 16:36:46,521 INFO  TOTAL: recebidos=542 inseridos=2 duplicatas=1 descartados=0 | 1.0s
+2026-10-13 16:38:21,884 INFO  Socrata: anonimo | rate limit: 4.0 req/s
+2026-10-13 16:38:22,975 INFO  ==============================================================================
+2026-10-13 16:38:22,975 INFO  categoria                    dataset     recebidos inseridos   duplic. descartados  status
+2026-10-13 16:38:22,975 INFO  inmetro_pbe_refrigeradores_x inmetro_refrigerators       542         0         3           0  ok
+2026-10-13 16:38:22,975 INFO  ------------------------------------------------------------------------------
+2026-10-13 16:38:22,975 INFO  TOTAL: recebidos=542 inseridos=0 duplicatas=3 descartados=0 | 0.8s

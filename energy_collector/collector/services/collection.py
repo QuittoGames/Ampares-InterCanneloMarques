@@ -1,7 +1,8 @@
 """CollectionService — orquestracao do pipeline de coleta.
 
 Pipeline por dataset: fetch (paginacao estavel) → normalize → validate →
-persist (upsert em lote idempotente). Cobre as tres user stories da spec:
+persist (lote INSERT-ONLY idempotente, ``ON CONFLICT DO NOTHING``).
+Cobre as tres user stories da spec:
 
 * US-1 (P1): varrer TODOS os datasets elegiveis sem intervencao manual e
   povoar ``product``.
@@ -33,7 +34,7 @@ from typing import TYPE_CHECKING, Any
 
 from ..api_client import SocrataClient, SocrataError
 from ..config import KNOWN_DATASETS, STATE_FILE
-from ..database import UpsertStats, upsert_batch
+from ..database import InsertStats, insert_batch
 from ..exceptions import PersistenceError
 from ..normalization import normalize, slugify_category
 from ..pagination import (
@@ -65,7 +66,7 @@ class CategoryReport:
     dataset_id: str = ""
     received: int = 0
     inserted: int = 0
-    updated: int = 0
+    duplicates: int = 0
     discarded: int = 0
     status: str = "ok"  # ok | failed | skipped(done)
 
@@ -83,7 +84,7 @@ class CollectionReport:
         for cat in self.per_category:
             total.received += cat.received
             total.inserted += cat.inserted
-            total.updated += cat.updated
+            total.duplicates += cat.duplicates
             total.discarded += cat.discarded
             if cat.status == "failed":
                 total.status = "partial"
@@ -228,12 +229,12 @@ class CollectionService:
             state[dataset_id] = DONE
             save_state(self.state_path, state)
         logger.info(
-            "[%s] %s — recebidos=%d inseridos=%d atualizados=%d descartados=%d",
+            "[%s] %s — recebidos=%d inseridos=%d duplicatas=%d descartados=%d",
             dataset_id,
             category,
             rep.received,
             rep.inserted,
-            rep.updated,
+            rep.duplicates,
             rep.discarded,
         )
         return rep
@@ -393,7 +394,7 @@ class CollectionService:
         stats_lock: threading.Lock | None = None,
     ) -> None:
         try:
-            stats: UpsertStats = upsert_batch(self.pool, products)
+            stats: InsertStats = insert_batch(self.pool, products)
         except PersistenceError as exc:  # erro de infra ja tipado
             logger.error(
                 "[%s] falha ao gravar lote offset=%d (%s) — lote descartado",
@@ -406,7 +407,7 @@ class CollectionService:
 
         def _accumulate() -> None:
             rep.inserted += stats.inserted
-            rep.updated += stats.updated
+            rep.duplicates += stats.duplicates
 
         if stats_lock is None:
             _accumulate()

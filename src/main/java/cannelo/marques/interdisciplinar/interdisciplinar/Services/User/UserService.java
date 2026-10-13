@@ -7,15 +7,15 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
-
-import com.sun.xml.messaging.saaj.packaging.mime.util.UUDecoderStream;
 
 import cannelo.marques.interdisciplinar.interdisciplinar.DTO.ProductDTO;
 import cannelo.marques.interdisciplinar.interdisciplinar.Models.Product;
 import cannelo.marques.interdisciplinar.interdisciplinar.Models.User;
 import cannelo.marques.interdisciplinar.interdisciplinar.Models.RegistryUserProduct;
 import cannelo.marques.interdisciplinar.interdisciplinar.Repository.UserRepository;
+import cannelo.marques.interdisciplinar.interdisciplinar.Services.Metrics.ConsumeMetricsService;
 import cannelo.marques.interdisciplinar.interdisciplinar.Services.Registry.RegistryUserService;
 import cannelo.marques.interdisciplinar.interdisciplinar.exceptions.ProductNotFoundException;
 import cannelo.marques.interdisciplinar.interdisciplinar.exceptions.UserNotFoundException;
@@ -27,12 +27,14 @@ public class UserService {
     private final ConsumeMetricsService consumeMetricsService;
     private final RegistryUserService registryUserService;
     private final ProductRepository productRepository;
+    private final JdbcTemplate jdbcTemplate;
 
-    public UserService(UserRepository repository, ConsumeMetricsService consumeMetricsService, RegistryUserService registryUserService,ProductRepository productRepository){
+    public UserService(UserRepository repository, ConsumeMetricsService consumeMetricsService, RegistryUserService registryUserService,ProductRepository productRepository, JdbcTemplate jdbcTemplate){
         this.repository = repository;
         this.consumeMetricsService = consumeMetricsService;
         this.registryUserService = registryUserService;
         this.productRepository = productRepository;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     public void addProduct(ProductDTO productDataRaw, int user_id) throws MismatchedInputException{
@@ -79,7 +81,7 @@ public class UserService {
     }
 
     public List<RegistryUserProduct> findAllProductrs(User user){
-        List<RegistryUserProduct> registry =  consumeMetricsService.getProductRegistry(user);
+        List<RegistryUserProduct> registry = consumeMetricsService.getProductsRegistrys(user);
         Objects.requireNonNull(registry);
         return registry;
     }
@@ -108,5 +110,32 @@ public class UserService {
         repository.save(user);
 
         return Optional.of(user);
+    }
+
+    /**
+     * Cria um usuário com o ID explícito enviado pelo cliente no login.
+     *
+     * <p>Usa SQL nativo porque {@code GenerationType.IDENTITY} faz o
+     * Hibernate omitir a coluna {@code id} do INSERT —
+     * {@code repository.save(new User(id))} ignoraria o valor informado e
+     * o banco geraria outro id. A tabela {@code users} usa
+     * {@code SERIAL} (migrations/create.sql), que aceita inserção
+     * explícita de id.
+     *
+     * <p>{@code ON CONFLICT (id) DO NOTHING} torna a operação idempotente:
+     * se o id já existir (corrida com {@link #userExists(User)}), nada é
+     * inserido e o login prossegue como "usuário já existente".
+     *
+     * @param id id fornecido pelo cliente
+     * @return o usuário com o id informado (criado ou já existente)
+     */
+    public Optional<User> create(int id){
+        String name = "user " + id;
+
+        jdbcTemplate.update(
+                "INSERT INTO users (id, name) VALUES (?, ?) ON CONFLICT (id) DO NOTHING",
+                id, name);
+
+        return Optional.of(new User(id, name));
     }
 }

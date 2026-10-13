@@ -8,7 +8,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import cannelo.marques.interdisciplinar.interdisciplinar.DTO.LoginDTO;
 import cannelo.marques.interdisciplinar.interdisciplinar.Services.Auth.AuthService;
-import cannelo.marques.interdisciplinar.interdisciplinar.exceptions.UserNotFoundException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -30,24 +29,20 @@ public class AuthController {
 
     @Operation(
         summary = "Autentica usuário por ID e define cookie de sessão",
-        description = "Verifica se o usuário existe e cria cookie HttpOnly user_id com TTL de 7 dias."
+        description = "Se o usuário ainda não existir, é criado com o MESMO id informado pelo cliente. "
+                + "Em ambos os casos define o cookie HttpOnly user_id com TTL de 7 dias. "
+                + "Resposta 200 com corpo vazio — o id usado é o que o cliente já conhece."
     )
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Login bem-sucedido"),
-        @ApiResponse(responseCode = "404", description = "Usuário não encontrado"),
+        @ApiResponse(responseCode = "200", description = "Login bem-sucedido (usuário criado, se necessário)"),
         @ApiResponse(responseCode = "400", description = "ID vazio ou inválido")
     })
     @PostMapping("/login")
     public ResponseEntity<Void> login(@RequestBody @Valid LoginDTO dto,
             HttpServletRequest request,
             HttpServletResponse response){
-        try {
-            authService.login(dto.id(), request, response);
-            return ResponseEntity.ok().build();
-        } catch (UserNotFoundException e) {
-            authService.register();
-            return ResponseEntity.ok().build();
-        }
+        authService.login(dto.id(), request, response);
+        return ResponseEntity.ok().build();
     }
 
     @Operation(

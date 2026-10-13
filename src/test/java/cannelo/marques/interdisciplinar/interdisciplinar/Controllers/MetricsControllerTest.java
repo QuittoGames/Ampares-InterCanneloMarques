@@ -20,10 +20,11 @@ import org.springframework.http.ResponseEntity;
 
 import cannelo.marques.interdisciplinar.interdisciplinar.DTO.MetricsByUserDTO;
 import cannelo.marques.interdisciplinar.interdisciplinar.DTO.MetricsStandbyByProductDTO;
+import cannelo.marques.interdisciplinar.interdisciplinar.DTO.ResultDTO;
 import cannelo.marques.interdisciplinar.interdisciplinar.DTO.SearchResponseDTO;
 import cannelo.marques.interdisciplinar.interdisciplinar.Models.Product;
 import cannelo.marques.interdisciplinar.interdisciplinar.Models.User;
-import cannelo.marques.interdisciplinar.interdisciplinar.Models.interfaces.MetricsService;
+import cannelo.marques.interdisciplinar.interdisciplinar.interfaces.MetricsService;
 import cannelo.marques.interdisciplinar.interdisciplinar.Repository.ProductRepository;
 import cannelo.marques.interdisciplinar.interdisciplinar.Repository.UserRepository;
 import cannelo.marques.interdisciplinar.interdisciplinar.Services.User.ProductService;
@@ -54,35 +55,6 @@ class MetricsControllerTest {
         controller = new MetricsController(metricsService, userRepository, productRepository, productService, userService);
         user = new User(11);
         product = new Product(UUID.randomUUID());
-    }
-
-    @Test
-    void shouldReturnTotalEnergyFromService() {
-        when(userRepository.findById(11)).thenReturn(Optional.of(user));
-        when(metricsService.calculateTotalEnergyByUser(user)).thenReturn(Optional.of(new BigDecimal("12.50")));
-
-        assertEquals(new BigDecimal("12.50"), controller.totalEnergyByUser(new MetricsByUserDTO(11)).getBody());
-        verify(userRepository).findById(11);
-        verify(metricsService).calculateTotalEnergyByUser(user);
-    }
-
-    @Test
-    void shouldReturnZeroWhenTotalEnergyIsEmpty() {
-        when(userRepository.findById(11)).thenReturn(Optional.of(user));
-        when(metricsService.calculateTotalEnergyByUser(user)).thenReturn(Optional.empty());
-
-        assertEquals(BigDecimal.ZERO, controller.totalEnergyByUser(new MetricsByUserDTO(11)).getBody());
-        verify(userRepository).findById(11);
-        verify(metricsService).calculateTotalEnergyByUser(user);
-    }
-
-    @Test
-    void shouldThrowUserNotFoundWhenUserDoesNotExistForTotalEnergy() {
-        when(userRepository.findById(99)).thenReturn(Optional.empty());
-
-        assertThrows(UserNotFoundException.class,
-                () -> controller.totalEnergyByUser(new MetricsByUserDTO(99)));
-        verify(userRepository).findById(99);
     }
 
     @Test
@@ -239,6 +211,41 @@ class MetricsControllerTest {
 
         assertThrows(UserNotFoundException.class,
                 () -> controller.searchProduct(99, "test"));
+        verify(userRepository).findById(99);
+    }
+
+    @Test
+    void shouldReturnGeneralResultFromCalculate() {
+        ResultDTO result = new ResultDTO(11, "Test User", new BigDecimal("4"), new BigDecimal("12.50"),
+                new BigDecimal("3"), new BigDecimal("1095"),
+                new BigDecimal("3.18"), new BigDecimal("1161.90"), List.of());
+        when(userRepository.findById(11)).thenReturn(Optional.of(user));
+        when(metricsService.calculate(user)).thenReturn(Optional.of(result));
+
+        ResponseEntity<ResultDTO> response = controller.calculateUser(new MetricsByUserDTO(11));
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(result, response.getBody());
+        verify(userRepository).findById(11);
+        verify(metricsService).calculate(user);
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenCalculateIsEmpty() {
+        when(userRepository.findById(11)).thenReturn(Optional.of(user));
+        when(metricsService.calculate(user)).thenReturn(Optional.empty());
+
+        assertEquals(404, controller.calculateUser(new MetricsByUserDTO(11)).getStatusCode().value());
+        verify(userRepository).findById(11);
+        verify(metricsService).calculate(user);
+    }
+
+    @Test
+    void shouldThrowUserNotFoundWhenUserDoesNotExistForCalculate() {
+        when(userRepository.findById(99)).thenReturn(Optional.empty());
+
+        assertThrows(UserNotFoundException.class,
+                () -> controller.calculateUser(new MetricsByUserDTO(99)));
         verify(userRepository).findById(99);
     }
 }

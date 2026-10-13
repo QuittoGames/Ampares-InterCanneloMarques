@@ -1,26 +1,31 @@
-"""Persistencia no PostgreSQL (Supabase): pool, garantia de tabela, upsert.
+"""Persistencia INSERT-ONLY no PostgreSQL de producao (spec do banco).
 
-Decisoes da spec refletidas aqui:
+Politica (spec "Especificacao do Banco de Dados — Ampares", secoes 1/6/8):
 
-* Pool de conexoes (psycopg_pool, psycopg 3) para escrita multi-thread
-  sem disputa (FR-007); transacao curta por lote (commit por lote;
-  rollback isola falhas — US-3).
-* Upsert em lote IDEMPOTENTE (``INSERT ... ON CONFLICT (id) DO UPDATE``):
-  registro novo insere, existente atualiza, nunca duplica (FR-005,
-  US-2/SC-002). O lote e ORDENADO por UUID antes da escrita — lotes
-  concorrentes travam chaves em ordem consistente, evitando deadlock
-  (edge case da spec).
-* INSERT com as 7 colunas EXPLICITAS do contrato (R7): ``source`` e
-  ``source_id`` existem so em memoria e nunca vao ao banco.
-* Garantia de estrutura (FR-006): ``CREATE TABLE IF NOT EXISTS product``
-  com o contrato exato — sem tocar em outras tabelas (FR-010: NUNCA
-  ``userproduct`` nem ``users``).
-* Estatisticas inserted/updated por lote: pre-count por
+* O coletor e processo de INGESTAO: conecta ao PostgreSQL de producao via
+  configuracao de ambiente (``.env``), normaliza em memoria e executa
+  SOMENTE ``INSERT`` nas tabelas autorizadas (``product`` e
+  ``product_source_observation``; ENCE e agregados quando a fonte os
+  declara).
+* INSERT-ONLY: ``ON CONFLICT ... DO NOTHING`` — NUNCA ``DO UPDATE``.
+  Reexecucao idempotente: linhas novas sao inseridas, existentes sao
+  IGNORADAS como duplicatas; nenhum dado previamente gravado e alterado
+  ou apagado. Correcao de catalogo e processo separado e autorizado.
+* SEM DDL em runtime: o coletor NAO cria/altera tabelas nem aplica
+  migracoes — o esquema e responsabilidade das migracoes versionadas do
+  projeto (``migrations/``). :func:`verify_schema` apenas CONFERE, via
+  ``information_schema`` (leitura), que as tabelas obrigatorias existem
+  antes de qualquer escrita (falha rapida com mensagem clara).
+* Lote ORDENADO por UUID antes da escrita — lotes concorrentes travam
+  chaves em ordem consistente (anti-deadlock); transacao curta por lote.
+* Estatisticas inserted/duplicates por lote: pre-count por
   ``WHERE id = ANY(%s::uuid[])`` — aproximacao estavel sob concorrencia
   (uuid5 torna colisao inter-lote rara e inofensiva ao dado).
-* Migracao PR-001 (v1.2.0): coluna ``is_generic`` e tabela
-  ``energy_specification`` + 4 tabelas auxiliares para rastreabilidade
-  de produtos genéricos entre fontes (WattSimple, INMETRO, IEA).
+* ``users`` e ``registry_user_product`` NUNCA sao tocados (FR-010).
+* ``product`` carrega EXATAMENTE as 8 colunas de ``Product.java``;
+  proveniencia (fonte, tensao declarada, ``is_generic``, valor/periodo
+  brutos de energia) vive em ``product_source_observation``
+  (migracoes 004/005).
 """
 
 from __future__ import annotations
@@ -36,167 +41,65 @@ if TYPE_CHECKING:
     from psycopg_pool import ConnectionPool
 
     from .config import DbConfig
-    from .models import AggregateRecord, Product, SourceObservation, source_observation
+    from .models import AggregateRecord, Product
 
 logger = logging.getLogger(__name__)
 
-#: Tabela de destino — UNICA tabela escrita pelo coletor (FR-010).
+#: Tabela canonical de destino — escrita SOMENTE com INSERT (spec secao 6).
 TABLE = "product"
 
-_CREATE_SQL = """
-CREATE TABLE IF NOT EXISTS product (
-    id                UUID PRIMARY KEY,
-    name              VARCHAR(150),
-    brand             VARCHAR(255),
-    model             VARCHAR(255),
-    category          VARCHAR(255),
-    subcategory       VARCHAR(255),
-    avg_power_w       NUMERIC,
-    annual_energy_kwh NUMERIC,
-    standby_power_w   NUMERIC,
-    is_generic        BOOLEAN DEFAULT FALSE
+#: Tabelas que o fluxo de ingestao usa. Verificadas (somente LEITURA de
+#: ``information_schema``) antes de qualquer escrita; criadas
+#: EXCLUSIVAMENTE pelas migracoes versionadas (``migrations/004``,
+#: ``005``, ``006``) — o coletor NUNCA executa DDL.
+REQUIRED_TABLES: tuple[str, ...] = (
+    "product",
+    "product_source_observation",
+    "energy_label_class",
+    "aggregate_reference",
 )
+
+_SCHEMA_CHECK_SQL = (
+    "SELECT table_name FROM information_schema.tables "
+    "WHERE table_schema = 'public' AND table_name = ANY(%s)"
+)
+
+#: Contrato canonico = EXATAMENTE as 8 colunas de ``Product.java``.
+#: ``standby_power_w``/``is_generic``/tensao/proveniencia NAO pertencem a
+#: ``product`` — vivem em ``product_source_observation`` (004/005).
+_INSERT_PRODUCT_SQL = """
+INSERT INTO product
+    (id, name, brand, model, category, subcategory, avg_power_w, annual_energy_kwh)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+ON CONFLICT (id) DO NOTHING
 """
 
-#: Migracao idempotente para bancos legados (coluna ``is_generic``, D1=A).
-_ALTER_IS_GENERIC_SQL = (
-    "ALTER TABLE product ADD COLUMN IF NOT EXISTS is_generic BOOLEAN DEFAULT FALSE"
-)
-
-#: Migracao idempotente (tabela ``energy_specification``, D3=A): specs tecnicas
-#: por fonte, com ID proprio da fonte para rastreabilidade.
-_CREATE_ENERGY_SPEC_SQL = """
-CREATE TABLE IF NOT EXISTS energy_specification (
-    product_id        UUID PRIMARY KEY REFERENCES product(id) ON DELETE CASCADE,
-    source            VARCHAR(50) NOT NULL,
-    source_product_id VARCHAR(255),
-    power_w           NUMERIC,
-    efficiency_class  VARCHAR(10),
-    declared_year     SMALLINT,
-    UNIQUE (source, source_product_id)
-)
-"""
-
-#: Migracao idempotente (tabela auxiliar 1/4): mapeia ID da fonte -> produto.
-_CREATE_SOURCE_PRODUCT_SQL = """
-CREATE TABLE IF NOT EXISTS source_product (
-    id                UUID PRIMARY KEY REFERENCES product(id) ON DELETE CASCADE,
-    source            VARCHAR(50) NOT NULL,
-    source_product_id VARCHAR(255) NOT NULL,
-    UNIQUE (source, source_product_id)
-)
-"""
-
-#: Migracao idempotente (tabela auxiliar 2/4): classe de etiqueta INMETRO.
-_CREATE_ENERGY_LABEL_CLASS_SQL = """
-CREATE TABLE IF NOT EXISTS energy_label_class (
-    id                UUID PRIMARY KEY REFERENCES product(id) ON DELETE CASCADE,
-    label_class       VARCHAR(10) NOT NULL
-                       CHECK (label_class IN ('A++','A+','A','B','C','D','E','F','G')),
-    updated_at        TIMESTAMPTZ DEFAULT now()
-)
-"""
-
-#: Migracao idempotente (tabela auxiliar 3/4): medicoes brutas pre-normalizacao.
-_CREATE_ENERGY_RAW_MEASUREMENT_SQL = """
-CREATE TABLE IF NOT EXISTS energy_raw_measurement (
-    id                UUID PRIMARY KEY REFERENCES product(id) ON DELETE CASCADE,
-    raw_power_w       NUMERIC,
-    raw_annual_kwh    NUMERIC,
-    raw_standby_w     NUMERIC,
-    measurement_date  TIMESTAMPTZ DEFAULT now()
-)
-"""
-
-#: Migracao idempotente (tabela auxiliar 4/4): metadados por fonte (extensivel).
-_CREATE_SOURCE_METADATA_SQL = """
-CREATE TABLE IF NOT EXISTS source_metadata (
-    id                UUID PRIMARY KEY REFERENCES product(id) ON DELETE CASCADE,
-    source            VARCHAR(50) NOT NULL,
-    metadata_key      VARCHAR(100) NOT NULL,
-    metadata_value    TEXT NOT NULL,
-    UNIQUE (id, source, metadata_key)
-)
-"""
-
-#: Migracao idempotente (PR 5, D6=A): dados AGREGADOS e anonimos por
-#: pais/ano — referencia estatistica, NAO produto individual. Nao tem FK
-#: para ``product``: existe independentemente de catalogo de produtos.
-#: Ex.: IEA Household Appliances Database (stock/difusao/energia por
-#: aparelho, por pais e ano).
-_CREATE_AGGREGATE_REFERENCE_SQL = """
-CREATE TABLE IF NOT EXISTS aggregate_reference (
-    id        UUID PRIMARY KEY,
-    source    VARCHAR(50) NOT NULL,
-    country   VARCHAR(100) NOT NULL,
-    ref_year  SMALLINT NOT NULL CHECK (ref_year >= 1900),
-    metric    VARCHAR(100) NOT NULL,
-    appliance VARCHAR(100),
-    value     NUMERIC NOT NULL,
-    unit      VARCHAR(30) NOT NULL,
-    UNIQUE (source, country, ref_year, metric, appliance)
-)
-"""
-
-_CREATE_SOURCE_OBSERVATION_SQL = """
-CREATE TABLE IF NOT EXISTS product_source_observation (
-    id UUID PRIMARY KEY,
-    canonical_product_id UUID NOT NULL REFERENCES product(id) ON DELETE CASCADE,
-    source VARCHAR(50) NOT NULL,
-    external_id VARCHAR(255) NOT NULL,
-    brand VARCHAR(255),
-    model VARCHAR(255),
-    dataset_id VARCHAR(255),
-    power_w NUMERIC CHECK (power_w IS NULL OR power_w >= 0),
-    annual_energy_kwh NUMERIC CHECK (annual_energy_kwh IS NULL OR annual_energy_kwh >= 0),
-    standby_power_w NUMERIC CHECK (standby_power_w IS NULL OR standby_power_w >= 0),
-    observed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE (source, external_id)
-)
-"""
-
-_SOURCE_OBSERVATION_UPSERT_SQL = """
+#: Observacao de fonte: chave natural ``(source, external_id)`` impede
+#: ingerir a mesma origem duas vezes; duplicata e IGNORADA (DO NOTHING),
+#: nunca atualizada — a observacao ja armazenada permanece intacta.
+_INSERT_OBSERVATION_SQL = """
 INSERT INTO product_source_observation
     (id, canonical_product_id, source, external_id, brand, model, dataset_id,
-     power_w, annual_energy_kwh, standby_power_w)
-VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-ON CONFLICT (id) DO UPDATE SET
-    canonical_product_id = EXCLUDED.canonical_product_id,
-    source = EXCLUDED.source,
-    external_id = EXCLUDED.external_id,
-    brand = EXCLUDED.brand,
-    model = EXCLUDED.model,
-    dataset_id = EXCLUDED.dataset_id,
-    power_w = EXCLUDED.power_w,
-    annual_energy_kwh = EXCLUDED.annual_energy_kwh,
-    standby_power_w = EXCLUDED.standby_power_w,
-    observed_at = now()
+     power_w, annual_energy_kwh, standby_power_w, is_generic,
+     voltage_raw, voltage_kind, voltage_min_v, voltage_max_v,
+     raw_energy_value, raw_energy_unit)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+ON CONFLICT (source, external_id) DO NOTHING
 """
 
-#: Migracao idempotente para bancos criados antes da coluna ``subcategory``.
-_ALTER_SQL = "ALTER TABLE product ADD COLUMN IF NOT EXISTS subcategory VARCHAR(255)"
+#: ENCE (``energy_label_class``, migracao 006): insert-only tambem.
+_INSERT_LABEL_SQL = """
+INSERT INTO energy_label_class (id, label_class)
+VALUES (%s, %s)
+ON CONFLICT (id) DO NOTHING
+"""
 
-#: Migracao idempotente para bancos criados antes da coluna ``standby_power_w``.
-_ALTER_STANDBY_SQL = (
-    "ALTER TABLE product ADD COLUMN IF NOT EXISTS standby_power_w NUMERIC"
-)
-
-#: Contrato de colunas explicitas (R7) — nada de reflexao sobre o dataclass.
-_UPSERT_SQL = """
-INSERT INTO product
-    (id, name, brand, model, category, subcategory, avg_power_w, annual_energy_kwh,
-     standby_power_w, is_generic)
-VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-ON CONFLICT (id) DO UPDATE SET
-    name              = EXCLUDED.name,
-    brand             = EXCLUDED.brand,
-    model             = EXCLUDED.model,
-    category          = EXCLUDED.category,
-    subcategory       = EXCLUDED.subcategory,
-    avg_power_w       = EXCLUDED.avg_power_w,
-    annual_energy_kwh = EXCLUDED.annual_energy_kwh,
-    standby_power_w   = EXCLUDED.standby_power_w,
-    is_generic        = EXCLUDED.is_generic
+#: Agregados anonimos (``aggregate_reference``, migracao 006): insert-only.
+_INSERT_AGGREGATE_SQL = """
+INSERT INTO aggregate_reference
+    (id, source, country, ref_year, metric, appliance, value, unit)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+ON CONFLICT (id) DO NOTHING
 """
 
 _COUNT_EXISTING_SQL = "SELECT count(*) FROM product WHERE id = ANY(%s::uuid[])"
@@ -233,56 +136,68 @@ def create_pool(config: DbConfig, max_size: int = 10) -> ConnectionPool:
     return pool
 
 
-def ensure_table(pool: ConnectionPool) -> None:
-    """Garante a tabela ``product`` com o contrato exato (FR-006).
+def verify_schema(pool: ConnectionPool) -> None:
+    """Confere (somente LEITURA) que as tabelas obrigatorias existem.
 
-    Idempotente: cria a tabela se ausente e aplica as migracoes de colunas
-    em bancos legados (``ADD COLUMN IF NOT EXISTS``) e cria as tabelas
-    auxiliares para rastreabilidade de fontes.
+    O coletor NAO executa DDL (spec secao 6): criar/evoluir tabelas e
+    responsabilidade das migracoes versionadas. Aqui apenas consultamos
+    ``information_schema`` e falhamos rapido com orientacao clara quando
+    algo esta ausente — evitando gravar por engano em um ambiente sem o
+    esquema esperado.
 
     Raises:
-        PersistenceError: erro de infraestrutura do banco traduzido.
+        PersistenceError: erro de infraestrutura ou tabelas ausentes.
     """
     try:
-        with pool.connection() as conn, conn.transaction():
-            conn.execute(_CREATE_SQL)
-            conn.execute(_ALTER_SQL)
-            conn.execute(_ALTER_STANDBY_SQL)
-            conn.execute(_ALTER_IS_GENERIC_SQL)
-            conn.execute(_CREATE_ENERGY_SPEC_SQL)
-            conn.execute(_CREATE_SOURCE_PRODUCT_SQL)
-            conn.execute(_CREATE_ENERGY_LABEL_CLASS_SQL)
-            conn.execute(_CREATE_ENERGY_RAW_MEASUREMENT_SQL)
-            conn.execute(_CREATE_SOURCE_METADATA_SQL)
-            conn.execute(_CREATE_AGGREGATE_REFERENCE_SQL)
-            conn.execute(_CREATE_SOURCE_OBSERVATION_SQL)
+        with pool.connection() as conn:
+            rows = conn.execute(_SCHEMA_CHECK_SQL, (list(REQUIRED_TABLES),)).fetchall()
     except Exception as exc:  # psycopg.Error + erros de pool
-        raise PersistenceError(f"Falha ao garantir a tabela '{TABLE}': {exc}") from exc
-    logger.info("Tabela '%s' e tabelas auxiliares garantidas", TABLE)
+        raise PersistenceError(f"Falha ao verificar o schema: {exc}") from exc
+
+    found = {row[0] for row in rows}
+    missing = [table for table in REQUIRED_TABLES if table not in found]
+    if missing:
+        raise PersistenceError(
+            "Schema incompleto — tabelas ausentes: "
+            + ", ".join(missing)
+            + ". Aplique as migracoes versionadas do projeto (migrations/); "
+            "o coletor nao executa DDL."
+        )
+    logger.info(
+        "Schema verificado: %d tabelas obrigatorias presentes",
+        len(REQUIRED_TABLES),
+    )
 
 
-class UpsertStats:
-    """Contadores de um upsert em lote (relatorio final, FR-011)."""
+class InsertStats:
+    """Contadores de um lote insert-only (relatorio final, FR-011).
 
-    __slots__ = ("inserted", "updated")
+    * ``inserted`` — linhas novas gravadas.
+    * ``duplicates`` — linhas ignoradas por já existirem
+      (``ON CONFLICT DO NOTHING``); nada foi atualizado.
+    """
 
-    def __init__(self, inserted: int = 0, updated: int = 0) -> None:
+    __slots__ = ("duplicates", "inserted")
+
+    def __init__(self, inserted: int = 0, duplicates: int = 0) -> None:
         self.inserted = inserted
-        self.updated = updated
+        self.duplicates = duplicates
 
 
-def upsert_batch(pool: ConnectionPool, products: Sequence[Product]) -> UpsertStats:
-    """Upsert idempotente de um lote; falha afeta SOMENTE este lote.
+def insert_batch(pool: ConnectionPool, products: Sequence[Product]) -> InsertStats:
+    """Lote INSERT-ONLY idempotente; falha afeta SOMENTE este lote.
 
-    Ordena por UUID (anti-deadlock), pre-conta existentes para estatistica
-    e grava em uma unica transacao curta.
+    Ordena por UUID (anti-deadlock), pre-conta existentes para estimar
+    duplicatas e grava em uma unica transacao curta com
+    ``ON CONFLICT (id) DO NOTHING`` — registros existentes NUNCA sao
+    atualizados (spec secao 6).
 
     Raises:
         PersistenceError: erro de infraestrutura do banco traduzido (o
             lote que falha e isolado pelo chamador).
     """
     if not products:
-        return UpsertStats()
+        return InsertStats()
 
     ordered = sorted(products, key=lambda p: p.product_id())
     ids = [str(p.product_id()) for p in ordered]
@@ -296,8 +211,6 @@ def upsert_batch(pool: ConnectionPool, products: Sequence[Product]) -> UpsertSta
             p.subcategory,
             p.avg_power_w,
             p.annual_energy_kwh,
-            p.standby_power_w,
-            p.is_generic,
         )
         for p in ordered
     ]
@@ -307,36 +220,24 @@ def upsert_batch(pool: ConnectionPool, products: Sequence[Product]) -> UpsertSta
             existing = conn.execute(_COUNT_EXISTING_SQL, (ids,)).fetchone()[0]
             conn.execute("SET LOCAL synchronous_commit = OFF")
             with conn.cursor() as cur:
-                cur.executemany(_UPSERT_SQL, params)
+                cur.executemany(_INSERT_PRODUCT_SQL, params)
     except Exception as exc:  # psycopg.Error + erros de pool
         raise PersistenceError(
             f"Falha ao gravar lote de {len(ordered)} produtos: {exc}"
         ) from exc
 
-    written = len(ordered)
-    updated = min(existing, written)
-    return UpsertStats(inserted=written - updated, updated=updated)
+    duplicates = min(existing, len(ordered))
+    return InsertStats(inserted=len(ordered) - duplicates, duplicates=duplicates)
 
 
-#: Upsert da tabela auxiliar ``energy_label_class`` (PR 2/PR 4):
-#: grava a classe ENCE dos produtos que a declaram (INMETRO). Produtos
-#: sem ``label_class`` sao simplesmente ignorados (sem erro).
-_LABEL_CLASS_UPSERT_SQL = """
-INSERT INTO energy_label_class (id, label_class)
-VALUES (%s, %s)
-ON CONFLICT (id) DO UPDATE SET
-    label_class = EXCLUDED.label_class,
-    updated_at  = now()
-"""
-
-
-def upsert_label_classes(pool: ConnectionPool, products: Sequence[Product]) -> int:
-    """Persiste ``Product.label_class`` em ``energy_label_class`` (PR 4).
+def insert_label_classes(pool: ConnectionPool, products: Sequence[Product]) -> int:
+    """Persiste ``Product.label_class`` em ``energy_label_class`` (insert-only).
 
     Filtra produtos com classe ENCE declarada e grava em lote ordenado
-    por UUID (mesma disciplina anti-deadlock do :func:`upsert_batch`).
-    A tabela auxiliar tem FK para ``product``: o chamador DEVE gravar o
-    produto antes (mesma transacao ou execucao anterior).
+    por UUID (mesma disciplina anti-deadlock). A tabela tem FK para
+    ``product``: o chamador DEVE gravar o produto antes (mesma transacao
+    ou execucao anterior). Duplicatas sao ignoradas — a classe ja
+    armazenada NUNCA e reclassificada por aqui.
 
     Returns:
         Numero de classes gravadas (0 quando nenhuma declarada).
@@ -355,7 +256,7 @@ def upsert_label_classes(pool: ConnectionPool, products: Sequence[Product]) -> i
             conn.transaction(),
             conn.cursor() as cur,
         ):
-            cur.executemany(_LABEL_CLASS_UPSERT_SQL, params)
+            cur.executemany(_INSERT_LABEL_SQL, params)
     except Exception as exc:  # psycopg.Error + erros de pool
         raise PersistenceError(
             f"Falha ao gravar {len(params)} classes ENCE: {exc}"
@@ -363,10 +264,15 @@ def upsert_label_classes(pool: ConnectionPool, products: Sequence[Product]) -> i
     return len(params)
 
 
-def upsert_source_observations(
+def insert_source_observations(
     pool: ConnectionPool, products: Sequence[Product]
 ) -> int:
-    """Persiste cada modelo/registro da fonte ligado ao produto canônico."""
+    """Persiste cada modelo/registro da fonte ligado ao produto canonico.
+
+    INSERT-ONLY com ``ON CONFLICT (source, external_id) DO NOTHING``:
+    a mesma origem re-coletada e ignorada — a observacao ja armazenada
+    permanece intacta (rastreabilidade preservada, spec secao 3.4).
+    """
     from .models import source_observation
 
     if not products:
@@ -385,12 +291,19 @@ def upsert_source_observations(
             observation.power_w,
             observation.annual_energy_kwh,
             observation.standby_power_w,
+            observation.is_generic,
+            observation.voltage_raw,
+            observation.voltage_kind,
+            observation.voltage_min_v,
+            observation.voltage_max_v,
+            observation.raw_energy_value,
+            observation.raw_energy_unit,
         )
         for observation in observations
     ]
     try:
         with pool.connection() as conn, conn.transaction(), conn.cursor() as cur:
-            cur.executemany(_SOURCE_OBSERVATION_UPSERT_SQL, params)
+            cur.executemany(_INSERT_OBSERVATION_SQL, params)
     except Exception as exc:
         raise PersistenceError(
             f"Falha ao gravar {len(params)} observacoes de fonte: {exc}"
@@ -398,30 +311,12 @@ def upsert_source_observations(
     return len(params)
 
 
-#: Upsert da tabela ``aggregate_reference`` (PR 5, D6=A): dados agregados
-#: anonimos por pais/ano — referencia estatistica (IEA), nunca ``product``.
-_AGGREGATE_UPSERT_SQL = """
-INSERT INTO aggregate_reference
-    (id, source, country, ref_year, metric, appliance, value, unit)
-VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-ON CONFLICT (id) DO UPDATE SET
-    source    = EXCLUDED.source,
-    country   = EXCLUDED.country,
-    ref_year  = EXCLUDED.ref_year,
-    metric    = EXCLUDED.metric,
-    appliance = EXCLUDED.appliance,
-    value     = EXCLUDED.value,
-    unit      = EXCLUDED.unit
-"""
-
-
-def upsert_aggregates(pool: ConnectionPool, records: Sequence[AggregateRecord]) -> int:
-    """Upsert idempotente de agregados anonimos (PR 5).
+def insert_aggregates(pool: ConnectionPool, records: Sequence[AggregateRecord]) -> int:
+    """Lote INSERT-ONLY de agregados anonimos (IEA -> ``aggregate_reference``).
 
     Ordena por UUID (anti-deadlock) e grava em transacao curta — mesma
-    disciplina de :func:`upsert_batch`. Diferenca: sem pre-count de
-    estatisticas (agregados sao referencia estatistica; o relatorio
-    final apenas totaliza gravacoes).
+    disciplina de :func:`insert_batch`. Sem pre-count: o relatorio final
+    apenas totaliza gravacoes.
 
     Raises:
         PersistenceError: erro de infraestrutura traduzido.
@@ -450,7 +345,7 @@ def upsert_aggregates(pool: ConnectionPool, records: Sequence[AggregateRecord]) 
             conn.transaction(),
             conn.cursor() as cur,
         ):
-            cur.executemany(_AGGREGATE_UPSERT_SQL, params)
+            cur.executemany(_INSERT_AGGREGATE_SQL, params)
     except Exception as exc:  # psycopg.Error + erros de pool
         raise PersistenceError(
             f"Falha ao gravar lote de {len(params)} agregados: {exc}"

@@ -1,0 +1,22 @@
+-- ---------------------------------------------------------------------------
+-- add_avg_idle_energy_for_hour.sql
+--
+-- Coluna ADITIVA e anulável na tabela `product`:
+--
+--   avg_idle_energy_for_hour NUMERIC   -- potência de standby, em Watts (W)
+--
+-- Origem do dado: coletor energy_collector (tela/entidade data_raw_product) —
+-- representa a potência média que o aparelho consome em standby, usada pelo
+-- hub de métricas para estimar consumo ocioso.
+--
+-- Compatibilidade / aplicação:
+--   * ALTER idempotente (IF NOT EXISTS) — seguro para reexecutar.
+--   * Este projeto roda com `spring.jpa.hibernate.ddl-auto=update` (SEM
+--     Flyway): o Hibernate também aplica esta coluna automaticamente a
+--     partir da entidade Models/Product.java. Este script fica como fonte
+--     canônica documentada para ambientes onde o DDL automático estiver
+--     desligado e para aplicação manual via migrations/migrate.sh.
+--   * NADA é removido nem alterado em colunas existentes (somente adição).
+-- ---------------------------------------------------------------------------
+
+ALTER TABLE product ADD COLUMN IF NOT EXISTS avg_idle_energy_for_hour NUMERIC;

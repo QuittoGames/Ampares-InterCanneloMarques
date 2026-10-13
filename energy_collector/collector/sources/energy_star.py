@@ -191,7 +191,6 @@ class EnergyStarAdapter:
         *,
         dataset_id: str,
         category: str,
-        tariff_per_kwh: Decimal | None = None,
     ) -> NormalizedProduct | None:
         """Delega 1:1 para :func:`normalize_record` (zero regressao).
 
@@ -199,8 +198,6 @@ class EnergyStarAdapter:
             raw_record: ``RawRecord`` produzido por :meth:`iter_raw_records`.
             dataset_id: ID 4x4 do dataset (ex.: ``"p5st-her9"``).
             category: Categoria logica do dataset (slug tecnico).
-            tariff_per_kwh: Tarifa explicita para o custo derivado
-                (nunca assumida arbitrariamente).
 
         Returns:
             :class:`NormalizedProduct` canonico ou ``None`` quando o
@@ -212,7 +209,6 @@ class EnergyStarAdapter:
             raw=raw,
             dataset_id=dataset_id,
             category=category,
-            tariff_per_kwh=tariff_per_kwh,
         )
 
     # ------------------------------------------------------------------ #

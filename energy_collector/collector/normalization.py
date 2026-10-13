@@ -17,11 +17,17 @@ Decisoes:
   (ex.: ``power``/``watts``/``power_watts``/``rated_power_watts``;
   ``annual_energy_kwh``/``annual_energy_use_kwh``/``annual_consumption``).
   Se um campo nao puder ser interpretado com seguranca -> ``None``.
-* Derivados: calculos puramente matematicos a partir dos dados existentes
-  (horas equivalentes, energia diaria, custo). Nunca inventados; tarifa
-  sempre explicita (config/parametro), nunca arbitraria.
-* Rastreabilidade: SOURCE DATA (valores brutos) e DERIVED DATA (calculos)
-  sao separados em :class:`collector.models.NormalizedProduct`.
+* Tensao: declaracao de tensao e extraida como PROVENIENCIA (raca
+  ``collector.voltage``) — valor/rotulo preservados (110 V != 127 V),
+  nunca convertidos e nunca inferidos por pais/estado.
+* SEM formulas de derivados aqui: horas equivalentes, energia diaria/
+  mensal, custo, tarifa e consumo de standby pertencem ao motor de
+  calculo Java (Banco de Formulas AMPARES, spec secoes 5 e formula bank
+  final). O coletor entrega apenas dado bruto normalizado + unidades —
+  uma segunda engine de formulas em Python criaria divergencia.
+* Rastreabilidade: SOURCE DATA (valores brutos, unidade/periodo
+  originais em ``raw_energy_value``/``raw_energy_unit``) e preservado em
+  :class:`collector.models.NormalizedProduct`/``product_source_observation``.
 * O registro nunca e descartado por metrica ausente/ruim — apenas o campo
   vira ``None``. Descarte so sem identificacao minima (sem ``source_id``
   nem marca+modelo).
@@ -38,6 +44,7 @@ from typing import Any
 from .config import KNOWN_DATASETS
 from .models import NAME_MAX, SOURCE_NAME, TEXT_MAX, NormalizedProduct, Product
 from .taxonomy import resolve_taxonomy
+from .voltage import KIND_UNKNOWN, VoltageSpec, parse_voltage
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +60,9 @@ POWER_FIELD_EQUIVALENTS: tuple[str, ...] = (
 )
 
 #: Equivalencias obvias de nomes de coluna de ENERGIA ANUAL (kWh/ano).
+#: Campos semanais/mensais (``_wk``/``_month``) NAO sao equivalentes —
+#: casar ``tec_kwh_wk`` como anual falsifica o valor em ~52x (bug real
+#: do dataset de imaging: TEC semanal 0.6 kWh/wk virava 0.6 kWh/ano).
 ANNUAL_FIELD_EQUIVALENTS: tuple[str, ...] = (
     "annual_energy_kwh",
     "annual_energy_use_kwh",
@@ -62,8 +72,40 @@ ANNUAL_FIELD_EQUIVALENTS: tuple[str, ...] = (
     "annual_energy_use_kwh_yr",
     "reported_annual_energy_consumption_kwh",
     "tec_of_model_kwh",
+    "typical_electricity_consumption_tec_kwh_yr",
     "kwh_year",
     "kwh_yr",
+)
+
+#: Tokens que identificam coluna de potencia em MODO DE ECONOMIA/DESLIGADO
+#: — NUNCA representam a potencia media de uso. Excluidos do fallback
+#: generico (bug real: ``power_in_sleep_w`` = 0.92W do KIP 700 foi
+#: gravado como ``avg_power_w``; a potencia real de uso e 600-1500W e
+#: simplesmente NAO e publicada pelo dataset de imaging).
+POWER_MODE_EXCLUDED_TOKENS: tuple[str, ...] = (
+    "standby",
+    "idle",
+    "sleep",
+    "off",
+    "shutdown",
+    "poweroff",
+    "power_off",
+)
+
+#: Tokens que identificam coluna de energia em periodo MENOR que ano
+#: (semanal/mensal) — NAO sao equivalentes anuais.
+ANNUAL_PERIOD_EXCLUDED_TOKENS: tuple[str, ...] = (
+    "_wk",
+    "_week",
+    "_weekly",
+    "per_week",
+    "_mo",
+    "_month",
+    "_monthly",
+    "per_month",
+    "_day",
+    "_daily",
+    "per_day",
 )
 
 #: Regex generica de fallback para datasets desconhecidos (FR-012).
@@ -87,10 +129,21 @@ STANDBY_FIELD_EQUIVALENTS: tuple[str, ...] = (
 #: Regex para potencia em standby (usada so para datasets desconhecidos).
 STANDBY_RE = re.compile(r"standby|idle", re.IGNORECASE)
 
-_PREFIX_RE = re.compile(r"energy star certified", re.IGNORECASE)
+#: Equivalencias obvias de coluna de TENSAO declarada (V). Apenas chaves
+#: explicitas — a tensao NUNCA e inferida por regex solta (risco de casar
+#: anos/codigos) nem por pais/estado.
+VOLTAGE_FIELD_EQUIVALENTS: tuple[str, ...] = (
+    "voltage",
+    "voltage_v",
+    "rated_voltage",
+    "voltage_rating",
+    "tensao",
+    "tensao_v",
+    "tensao_nominal",
+    "voltagem",
+)
 
-#: Dias em um ano (base para derivados diarios).
-_DAYS_PER_YEAR = Decimal(365)
+_PREFIX_RE = re.compile(r"energy star certified", re.IGNORECASE)
 
 
 def slugify_category(dataset_name: str) -> str:
@@ -183,21 +236,32 @@ def _first_matching_key(raw: dict[str, Any], pattern: re.Pattern[str]) -> str | 
     return None
 
 
+def _matches_any_token(key: str, tokens: tuple[str, ...]) -> bool:
+    """Verifica se a coluna casa algum token (case-insensitive)."""
+    lowered = key.casefold()
+    return any(token in lowered for token in tokens)
+
+
 def _match_power_key(raw: dict[str, Any]) -> str | None:
     """Reconhece a coluna de potencia de forma segura (equivalencias obvias).
 
     Prioriza equivalencias explícitas; cai na regex generica so para
-    datasets desconhecidos (FR-012). Evita campos de standby/idle que nao
-    representam a potencia media de uso.
+    datasets desconhecidos (FR-012). Colunas de modo de economia
+    (standby/idle/sleep/off) NUNCA representam a potencia media de uso e
+    sao excluidas — ``power_in_sleep_w`` (0.92W) nao e a potencia de uma
+    impressora de 1500W.
     """
     for equiv in POWER_FIELD_EQUIVALENTS:
         if equiv in raw:
             return equiv
-    # Fallback: preferir colunas com "on_mode"/"rated" sobre standby/idle.
+    # Fallback: preferir colunas com "on_mode"/"rated" sobre modos de
+    # economia/desligado (que nunca sao a potencia media de uso).
     keys = [k for k in raw if POWER_RE.search(k)]
     if not keys:
         return None
-    preferred = [k for k in keys if "standby" not in k and "idle" not in k]
+    preferred = [
+        k for k in keys if not _matches_any_token(k, POWER_MODE_EXCLUDED_TOKENS)
+    ]
     return (preferred or keys)[0]
 
 
@@ -220,11 +284,20 @@ def _match_standby_key(raw: dict[str, Any]) -> str | None:
 
 
 def _match_annual_key(raw: dict[str, Any]) -> str | None:
-    """Reconhece a coluna de energia anual de forma segura (equivalencias)."""
+    """Reconhece a coluna de energia anual de forma segura (equivalencias).
+
+    Colunas de periodo menor que ano (``_wk``/``_month``/``_day``) sao
+    EXCLUIDAS do fallback — casar ``tec_kwh_wk`` (semanal) como anual
+    falsifica o valor em ~52x.
+    """
     for equiv in ANNUAL_FIELD_EQUIVALENTS:
         if equiv in raw:
             return equiv
-    return _first_matching_key(raw, ANNUAL_RE)
+    key = _first_matching_key(raw, ANNUAL_RE)
+    if key is not None and _matches_any_token(key, ANNUAL_PERIOD_EXCLUDED_TOKENS):
+        logger.debug("Coluna anual %r e de periodo menor que ano — descartada", key)
+        return None
+    return key
 
 
 # ---------------------------------------------------------------------------
@@ -298,116 +371,24 @@ def _extract_source_id(raw: dict[str, Any], model: str | None) -> str | None:
     )
 
 
-# ---------------------------------------------------------------------------
-# Calculos derivados (DERIVED DATA) — matematica deterministica
-# ---------------------------------------------------------------------------
+def _extract_voltage(
+    raw: dict[str, Any], cfg: dict[str, str | None] | None
+) -> VoltageSpec:
+    """Extrai a declaracao de tensao como proveniencia (secao 3 da spec).
 
-
-def _safe_divide(
-    numerator: Decimal | None, denominator: Decimal | None
-) -> Decimal | None:
-    """Divisao segura: ``None`` quando o denominador e zero ou ausente."""
-    if numerator is None or denominator is None or denominator == 0:
-        return None
-    try:
-        return numerator / denominator
-    except (InvalidOperation, ZeroDivisionError):
-        return None
-
-
-def compute_equivalent_hours_year(
-    avg_power_w: Decimal | None, annual_energy_kwh: Decimal | None
-) -> Decimal | None:
-    """Horas equivalentes por ano: ``H_eq = 1000 * E_year / P``.
-
-    Onde ``E_year`` em kWh e ``P`` em watts. Derivado apenas quando ambos
-    existem e ``P > 0`` (sem divisao por zero).
+    Mapeamento verificado (``cfg["voltage"]``) tem prioridade; senao,
+    equivalencias obvias de nome. Ausente/nao interpretavel -> ``unknown``
+    (nunca inferido por pais, estado, categoria ou marca).
     """
-    if avg_power_w is None or annual_energy_kwh is None:
-        return None
-    return _safe_divide(Decimal(1000) * annual_energy_kwh, avg_power_w)
-
-
-def compute_equivalent_hours_year_day(
-    equivalent_hours_year: Decimal | None,
-) -> Decimal | None:
-    """Horas equivalentes por dia: ``H_eq_day = H_eq / 365``."""
-    return _safe_divide(equivalent_hours_year, _DAYS_PER_YEAR)
-
-
-def compute_estimated_daily_energy(annual_energy_kwh: Decimal | None) -> Decimal | None:
-    """Energia diaria estimada: ``E_day = E_year / 365``."""
-    return _safe_divide(annual_energy_kwh, _DAYS_PER_YEAR)
-
-
-def compute_estimated_cost(
-    annual_energy_kwh: Decimal | None, tariff_per_kwh: Decimal | None
-) -> Decimal | None:
-    """Custo anual estimado: ``C = E_year * T``.
-
-    A tarifa ``T`` (moeda/kWh) DEVE vir explicita (config/parametro/banco/
-    servico externo) — nunca e assumida arbitrariamente aqui.
-    """
-    if annual_energy_kwh is None or tariff_per_kwh is None:
-        return None
-    return annual_energy_kwh * tariff_per_kwh
-
-
-def compute_standby_energy_kwh(
-    standby_power_w: Decimal | None,
-    active_hours_per_day: Decimal | None,
-    days: Decimal | None,
-) -> Decimal | None:
-    """Consumo em standby (kWh): ``E_standby = P_standby * (24 - H_ativo) * D / 1000``.
-
-    Onde:
-
-    * ``P_standby`` (``standby_power_w``): potencia em standby (W).
-    * ``H_ativo`` (``active_hours_per_day``): horas de uso ativo por dia.
-    * ``D`` (``days``): quantidade de dias do periodo.
-    * Resultado em kWh.
-
-    Nenhum valor e inventado: ausencia de qualquer entrada -> ``None``.
-    Retorna ``None`` tambem quando ``H_ativo`` esta fora de ``[0, 24]``
-    (standby negativo impossivel) ou ``days <= 0``.
-    """
-    if standby_power_w is None or active_hours_per_day is None or days is None:
-        return None
-    if active_hours_per_day < 0 or active_hours_per_day > 24:
-        return None
-    if days <= 0:
-        return None
-    standby_hours_per_day = Decimal(24) - active_hours_per_day
-    return standby_power_w * standby_hours_per_day * days / Decimal(1000)
-
-
-def compute_derived(
-    avg_power_w: Decimal | None,
-    annual_energy_kwh: Decimal | None,
-    tariff_per_kwh: Decimal | None = None,
-    standby_power_w: Decimal | None = None,
-) -> dict[str, Decimal | None]:
-    """Calcula todos os derivados deterministicos de uma vez.
-
-    Retorna dict com as chaves dos campos DERIVED DATA de
-    :class:`NormalizedProduct`. Nenhum valor inventado: ausentes ou
-    divisao por zero -> ``None``. ``standby_power_w`` e carregado aqui
-    para rastreabilidade; o consumo em standby completo
-    (:func:`compute_standby_energy_kwh`) exige tambem horas ativas e o
-    periodo em dias, que nao sao atributos de catalogo.
-    """
-    equivalent_hours_year = compute_equivalent_hours_year(
-        avg_power_w, annual_energy_kwh
-    )
-    return {
-        "equivalent_hours_year": equivalent_hours_year,
-        "equivalent_hours_year_day": compute_equivalent_hours_year_day(
-            equivalent_hours_year
-        ),
-        "estimated_daily_energy_kwh": compute_estimated_daily_energy(annual_energy_kwh),
-        "estimated_cost": compute_estimated_cost(annual_energy_kwh, tariff_per_kwh),
-        "standby_power_w": standby_power_w,
-    }
+    key = cfg.get("voltage") if cfg is not None else None
+    if not key:
+        for equiv in VOLTAGE_FIELD_EQUIVALENTS:
+            if equiv in raw:
+                key = equiv
+                break
+    if not key:
+        return VoltageSpec(None, KIND_UNKNOWN, None, None)
+    return parse_voltage(raw.get(key))
 
 
 # ---------------------------------------------------------------------------
@@ -426,7 +407,7 @@ def normalize(
 
     Mantido como a funcao principal do pipeline existente: retorna o
     :class:`Product` canonico que vai ao banco. Para rastreabilidade
-    completa (SOURCE + DERIVED), use :func:`normalize_record`.
+    completa (valores brutos da fonte), use :func:`normalize_record`.
 
     Args:
         raw: Linha crua do dataset Socrata.
@@ -454,13 +435,13 @@ def normalize_record(
     category: str,
     *,
     source: str = SOURCE_NAME,
-    tariff_per_kwh: Decimal | None = None,
 ) -> NormalizedProduct | None:
-    """Normaliza um registro bruto, separando SOURCE e DERIVED DATA.
+    """Normaliza um registro bruto preservando SOURCE DATA da fonte.
 
     Esta e a entrada rica: retorna :class:`NormalizedProduct` com o
-    ``product`` canonico (escrita), os valores brutos da API (``raw_*``)
-    e os derivados calculados (``equivalent_*`` / ``estimated_*``).
+    ``product`` canonico (escrita) e os valores brutos da API (``raw_*``,
+    unidade/periodo originais). NENHUM valor derivado e calculado —
+    custo, tarifa, horas e perfis de uso pertencem ao motor Java.
 
     Args:
         raw: Linha crua do dataset Socrata.
@@ -469,8 +450,6 @@ def normalize_record(
         source: Identificador da fonte (atribuido a ``Product.source``).
             Default ``SOURCE_NAME`` para preservar bit-a-bit os UUIDs
             do pipeline ENERGY STAR legado.
-        tariff_per_kwh: Tarifa (moeda/kWh) explicita para o custo derivado.
-            ``None`` (padrao) -> custo derivado fica ``None``.
 
     Returns:
         ``NormalizedProduct`` ou ``None`` sem identificacao minima.
@@ -479,6 +458,7 @@ def normalize_record(
 
     brand, model = _extract_brand_model(raw, cfg)
     raw_power, raw_annual, raw_standby = _extract_energy(raw, cfg)
+    voltage = _extract_voltage(raw, cfg)
 
     source_id = _extract_source_id(raw, model)
 
@@ -511,16 +491,18 @@ def normalize_record(
         source_id=source_id,
         dataset_category=category,
         dataset_id=dataset_id,
-    )
-
-    derived = compute_derived(
-        raw_power, raw_annual, tariff_per_kwh, standby_power_w=raw_standby
+        # Proveniencia de tensao/energia (secoes 3 e 5) — nunca em `product`.
+        voltage_raw=voltage.raw,
+        voltage_kind=voltage.kind,
+        voltage_min_v=voltage.min_v,
+        voltage_max_v=voltage.max_v,
+        raw_energy_value=raw_annual,
+        raw_energy_unit="kWh/year" if raw_annual is not None else None,
     )
 
     return NormalizedProduct(
         product=product,
         raw_power=raw_power,
         raw_annual_energy=raw_annual,
-        tariff_per_kwh=tariff_per_kwh,
-        **derived,
+        standby_power_w=raw_standby,
     )

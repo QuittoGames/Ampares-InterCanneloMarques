@@ -1,13 +1,10 @@
 package cannelo.marques.interdisciplinar.interdisciplinar.Models;
 
-import java.util.List;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 
 @Entity
@@ -18,11 +15,8 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 
-    @Column(nullable =  true)
+    @Column(name = "name", length = 50, nullable = true)
     private String name;
-
-    @OneToMany(mappedBy = "user")
-    private List<RegistryUserProduct> registryUserProducts;
 
     public User(){
     }
@@ -44,20 +38,8 @@ public class User {
         return name;
     }
 
-        public void setName(String name){
-            this.name = name;
-        }
-
-        public void setRegistryUserProducts(List<RegistryUserProduct> registryUserProducts){
-            this.registryUserProducts = registryUserProducts;
-        }
-
-    public void addRegistryUserProduct(RegistryUserProduct product){
-        this.registryUserProducts.add(product);
-    }
-
-    public void removeRegistryUserProduct(RegistryUserProduct product){
-        this.registryUserProducts.remove(this.registryUserProducts.indexOf(product.getId()));
+    public void setName(String name) {
+        this.name = name;
     }
 
     @Override
@@ -71,6 +53,15 @@ public class User {
             if (other.name != null) return false;
         } else if (!name.equals(other.name)) return false;
         return true;
+    }
+
+    @Override
+    public int hashCode(){
+        int prime = 31;
+        int result = 1;
+        result = prime * result + id;
+        result = prime * result + ((name == null) ? 0 : name.hashCode());
+        return result;
     }
 
     @Override

@@ -1,0 +1,819 @@
+{
+  "name": "codebase report",
+  "git": {
+    "branch": "main",
+    "commit": "c70d48e9907344607d52bc2768338c061bb02747"
+  },
+  "language": [
+    "Java 21 (Spring Boot 4.1.1, Maven, Hibernate/JPA)",
+    "Python 3.14+ (energy_collector, psycopg3 + psycopg_pool, pytest)",
+    "Vanilla JS frontend (src/main/resources/static/app.js, no framework)",
+    "SQL (PostgreSQL migrations/)"
+  ],
+  "architecture": [
+    {
+      "type": "FACT",
+      "statement": "Duas pipelines de coleta escrevem na MESMA tabela 'product': (1) legada CollectionService (ENERGY STAR/Socrata, por modelo individual) e (2) MultiSourceCollectionService (--source), que grava PROJECOES CANONICAS agregadas por categoria via merge_products().",
+      "evidence": [
+        "energy_collector/data_collector.py (main: args.source -> _run_multi_source, senao CollectionService)",
+        "energy_collector/collector/services/collection.py::_persist (upsert_batch direto)",
+        "energy_collector/collector/services/multi_source.py::_persist_products (merge_products -> upsert_batch)",
+        "energy_collector/collector/models.py::merge_products (270-310)"
+      ],
+      "confidence": "HIGH"
+    },
+    {
+      "type": "FACT",
+      "statement": "Nao existe @ControllerAdvice nem @ExceptionHandler no backend Java: qualquer RuntimeException vira 500 padrao (JSON de erro sem campo 'message').",
+      "evidence": [
+        "grep 'ControllerAdvice|ExceptionHandler' src/main/java -> no matches",
+        "src/main/java/.../config/SpringAplicationMapper.java (classe @Configuration vazia)"
+      ],
+      "confidence": "HIGH"
+    },
+    {
+      "type": "FACT",
+      "statement": "Nenhum codigo (Python/Java/JS/SQL) manipula tensao/voltage: grep case-insensitive 'voltage|tensao|tensão|bivolt|127|220' nao encontra campo algum - so geometrias em docs/*.drawio.",
+      "evidence": [
+        "grep global sem matches fora docs/arquiteture.drawio (mxGeometry)",
+        "migrations/create.sql, energy_collector/collector/models.py, src/main/java/.../Models/Product.java (sem campo voltage)"
+      ],
+      "confidence": "HIGH"
+    },
+    {
+      "type": "FACT",
+      "statement": "ConsumptionCalculator.calculate retorna P*horas*qty/1000 sem multiplicar por dias: com avgActiveHours em h/dia o resultado e DIARIO, mas endpoints/labels rotulam como 'anual' (kWh/ano).",
+      "evidence": [
+        "src/main/java/.../Services/Consumption/ConsumptionCalculator.java (69-90)",
+        "src/main/java/.../Controllers/MetricsController.java (54-57: 'soma do consumo anual em kWh')",
+        "src/main/resources/static/app.js (263-266: labels 'Consumo total anual', 'Média anual em standby')"
+      ],
+      "confidence": "HIGH"
+    },
+    {
+      "type": "FACT",
+      "statement": "DDL divergente: migrations/create.sql da tabela product NAO tem subcategory/standby_power_w/is_generic; o coletor Python adiciona via ALTER idempotente; Hibernate (ddl-auto=update) tambem adiciona subcategory. Multiplas fontes de verdade de schema.",
+      "evidence": [
+        "migrations/create.sql (37-45)",
+        "energy_collector/collector/database.py (_ALTER_SQL, _ALTER_STANDBY_SQL, _ALTER_IS_GENERIC_SQL)",
+        "src/main/resources/application.properties (spring.jpa.hibernate.ddl-auto=update)"
+      ],
+      "confidence": "HIGH"
+    },
+    {
+      "type": "FACT",
+      "statement": "Banco atual = PostgreSQL LOCAL (jdbc:postgresql://localhost:5432/neondb), migrado do Neon por scripts em migrations/. Scripts contem credenciais em texto plano (local e host Neon remoto) - nao repetir.",
+      "evidence": [
+        "src/main/resources/application.properties (commit c70d48e 'switch datasource url to local postgres')",
+        "migrations/migrate.sh, migrations/migrate_remote.sh (docker compose Postgres local + pg_dump do host Neon remoto)"
+      ],
+      "confidence": "HIGH"
+    }
+  ],
+  "structure": {
+    "src/main/java": {
+      "type": "source",
+      "children": {
+        "cannelo/marques/interdisciplinar/interdisciplinar": {
+          "type": "spring-boot-app",
+          "children": {
+            "Controllers": {},
+            "Services": {
+              "Auth": {},
+              "Consumption": {},
+              "Registry": {},
+              "User": {}
+            },
+            "Models": {
+              "interfaces": {}
+            },
+            "Repository": {},
+            "DTO": {},
+            "config": {},
+            "exceptions": {}
+          }
+        }
+      }
+    },
+    "src/main/resources": {
+      "type": "resources",
+      "children": {
+        "static": {
+          "type": "frontend",
+          "children": {
+            "app.js": {
+              "type": "vanilla-js"
+            },
+            "index.html": {},
+            "style.css": {}
+          }
+        },
+        "application.properties": {
+          "type": "config"
+        }
+      }
+    },
+    "src/test/java": {
+      "type": "tests"
+    },
+    "energy_collector": {
+      "type": "python-package",
+      "children": {
+        "data_collector.py": {
+          "type": "cli-entrypoint"
+        },
+        "collector": {
+          "type": "package",
+          "children": {
+            "normalization.py": {},
+            "models.py": {},
+            "database.py": {},
+            "config.py": {},
+            "taxonomy.py": {},
+            "services": {
+              "collection.py": {},
+              "multi_source.py": {},
+              "socrata_service.py": {}
+            },
+            "sources": {
+              "energy_star.py": {},
+              "wattsimple.py": {},
+              "inmetro.py": {},
+              "iea.py": {},
+              "registry.py": {},
+              "protocol.py": {}
+            }
+          }
+        },
+        "tests": {
+          "type": "pytest"
+        }
+      }
+    },
+    "migrations": {
+      "type": "sql",
+      "children": {
+        "create.sql": {},
+        "004_canonical_product_observations.sql": {},
+        "seed.sql": {},
+        "migrate.sh": {},
+        "migrate_remote.sh": {}
+      }
+    },
+    "docs": {
+      "type": "documentation"
+    },
+    ".agents": {
+      "type": "agent-artifacts",
+      "children": {
+        "graph": {},
+        "RULES.md": {},
+        "TODO.md": {},
+        "AGENTS.md": {}
+      }
+    }
+  },
+  "description": "Projeto escolar interdisciplinar: app Spring Boot (porta 8081) que lista produtos de energia e registra uso por usuario, com coletor Python (ENERGY STAR/Socrata + fontes multi-fonte) gravando na mesma tabela 'product' do Postgres local. Frontend vanilla JS servido de src/main/resources/static.",
+  "entrypoints": [
+    {
+      "type": "FACT",
+      "value": "Java: src/main/java/.../InterdisciplinarApplication.java (Spring Boot, porta 8081)",
+      "evidence": [
+        "src/main/resources/application.properties"
+      ]
+    },
+    {
+      "type": "FACT",
+      "value": "Python CLI: energy_collector/data_collector.py (--all | --category | --source energy-star|wattsimple)",
+      "evidence": [
+        "energy_collector/data_collector.py::build_parser"
+      ]
+    },
+    {
+      "type": "FACT",
+      "value": "HTTP API: /auth/login|/logout, /products, /registryUserProducts (POST, GET /user/{id}), /api/metrics/users/*, /v3/api-docs, /swagger-ui.html",
+      "evidence": [
+        "src/main/java/.../Controllers/*.java"
+      ]
+    },
+    {
+      "type": "FACT",
+      "value": "Frontend: static/index.html + static/app.js",
+      "evidence": [
+        "src/main/resources/static/"
+      ]
+    }
+  ],
+  "modules": [
+    {
+      "module": "normalization (py)",
+      "path": "energy_collector/collector/normalization.py",
+      "responsibility": "Normalizacao deterministica de registros brutos; derivados (horas equivalentes, energia diaria, custo, standby)",
+      "depends_on": [
+        "config",
+        "models",
+        "taxonomy"
+      ],
+      "used_by": [
+        "services.collection",
+        "sources.energy_star"
+      ],
+      "type": "FACT",
+      "confidence": "HIGH"
+    },
+    {
+      "module": "models (py)",
+      "path": "energy_collector/collector/models.py",
+      "responsibility": "Product/NormalizedProduct/SourceObservation/AggregateRecord; uuid5 deterministico; merge_products (agregacao canonica)",
+      "depends_on": [],
+      "used_by": [
+        "normalization",
+        "database",
+        "services"
+      ],
+      "type": "FACT",
+      "confidence": "HIGH"
+    },
+    {
+      "module": "database (py)",
+      "path": "energy_collector/collector/database.py",
+      "responsibility": "Pool psycopg3; DDL idempotente; upsert de product, energy_label_class, product_source_observation, aggregate_reference",
+      "depends_on": [
+        "config"
+      ],
+      "used_by": [
+        "services.collection",
+        "services.multi_source"
+      ],
+      "type": "FACT",
+      "confidence": "HIGH"
+    },
+    {
+      "module": "services.collection",
+      "path": "energy_collector/collector/services/collection.py",
+      "responsibility": "Pipeline legado ENERGY STAR: fetch -> normalize -> validate -> upsert por modelo",
+      "depends_on": [
+        "api_client",
+        "normalization",
+        "database"
+      ],
+      "used_by": [
+        "data_collector"
+      ],
+      "type": "FACT",
+      "confidence": "HIGH"
+    },
+    {
+      "module": "services.multi_source",
+      "path": "energy_collector/collector/services/multi_source.py",
+      "responsibility": "Strangler Fig multi-fonte: roteia por source_type (product vs aggregate); persiste produtos CANONICOS (merge) + observacoes por fonte",
+      "depends_on": [
+        "database",
+        "models"
+      ],
+      "used_by": [
+        "data_collector (--source)"
+      ],
+      "type": "FACT",
+      "confidence": "HIGH"
+    },
+    {
+      "module": "sources",
+      "path": "energy_collector/collector/sources/",
+      "responsibility": "Adapters por fonte: energy_star (registrado), wattsimple (registrado), inmetro/iea (modulos fora do registry), registry.py = fabrica de fontes",
+      "depends_on": [
+        "protocol",
+        "normalization"
+      ],
+      "used_by": [
+        "services.multi_source"
+      ],
+      "type": "FACT",
+      "confidence": "HIGH"
+    },
+    {
+      "module": "ConsumptionCalculator (java)",
+      "path": "src/main/java/.../Services/Consumption/ConsumptionCalculator.java",
+      "responsibility": "Pxhxqtd/1000 (kWh) e inversa horas/dia",
+      "depends_on": [
+        "RegistryUserProduct"
+      ],
+      "used_by": [
+        "ConsumeMetricsService",
+        "RegistryUserService"
+      ],
+      "type": "FACT",
+      "confidence": "HIGH"
+    },
+    {
+      "module": "RegistryCalculator (java)",
+      "path": "src/main/java/.../Services/Registry/RegistryCalculator.java",
+      "responsibility": "Port das formulas Python: H_eq=1000E/P, H/dia=H_eq/365, standby=24-ativo",
+      "depends_on": [
+        "Product"
+      ],
+      "used_by": [
+        "RegistryUserService"
+      ],
+      "type": "FACT",
+      "confidence": "HIGH"
+    },
+    {
+      "module": "ConsumeMetricsService (java)",
+      "path": "src/main/java/.../Services/User/ConsumeMetricsService.java",
+      "responsibility": "Metricas por usuario (total, media, mais consumidor, standby)",
+      "depends_on": [
+        "RegistryUserProductRepository",
+        "ConsumptionCalculator"
+      ],
+      "used_by": [
+        "MetricsController",
+        "UserService"
+      ],
+      "type": "FACT",
+      "confidence": "HIGH"
+    },
+    {
+      "module": "RegistryUserService (java)",
+      "path": "src/main/java/.../Services/Registry/RegistryUserService.java",
+      "responsibility": "Cria registro user x product com validacao e horas derivadas",
+      "depends_on": [
+        "RegistryCalculator",
+        "ConsumptionCalculator"
+      ],
+      "used_by": [
+        "RegistryUserProductController",
+        "UserService"
+      ],
+      "type": "FACT",
+      "confidence": "HIGH"
+    },
+    {
+      "module": "frontend",
+      "path": "src/main/resources/static/app.js",
+      "responsibility": "Login, busca de produtos, registro de uso, exibicao de metricas (sem calculo local)",
+      "depends_on": [
+        "API REST"
+      ],
+      "used_by": [],
+      "type": "FACT",
+      "confidence": "HIGH"
+    }
+  ],
+  "dependencies": [
+    "org.springframework.boot:* (Boot 4.1.1 - Jackson 3 'tools.jackson', webmvc, data-jpa, data-rest, validation, actuator, aspectj, devtools)",
+    "org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.1 (uncommitted change 3.1.0->3.1.1)",
+    "org.postgresql:postgresql (runtime), com.h2database:h2 (runtime/test)",
+    "Python: requests>=2.31, python-dotenv>=1.0, psycopg[binary]>=3.1, psycopg-pool>=3.2, pytest>=8 (energy_collector/requirements.txt)",
+    "Externos: Socrata ENERGY STAR (data.energystar.gov), catalogo api.us.socrata.com, WattSimple CSV",
+    "Postgres local: localhost:5432/neondb (legado: Neon remote)"
+  ],
+  "flows": [
+    {
+      "name": "Coleta ENERGY STAR (legado, default)",
+      "steps": [
+        "data_collector.py main (--all|--category)",
+        "DbConfig.from_env(.env raiz + energy_collector/.env) -> pool psycopg3",
+        "ensure_table (DDL idempotente product + auxiliares)",
+        "CollectionService.run_sequential|run_concurrent",
+        "SocrataClient.fetch -> normalize() (normalization.py:418)",
+        "Product.validate -> database.upsert_batch (ON CONFLICT (id) DO UPDATE, 10 colunas)",
+        "tabela product (por modelo: uuid5, brand/model/category/subcategory, avg_power_w, annual_energy_kwh, standby_power_w, is_generic)"
+      ],
+      "type": "FACT",
+      "confidence": "HIGH",
+      "evidence": [
+        "energy_collector/data_collector.py",
+        "energy_collector/collector/services/collection.py",
+        "energy_collector/collector/database.py"
+      ]
+    },
+    {
+      "name": "Coleta multi-fonte (--source)",
+      "steps": [
+        "data_collector.py --source energy-star|wattsimple -> sources/registry.py SOURCES",
+        "MultiSourceCollectionService.collect(adapter)",
+        "adapter.normalize -> Product|NormalizedProduct|AggregateRecord",
+        "products -> merge_products (1 canonico por category|subcategory, medias ignorando None) -> upsert_batch",
+        "observacoes por fonte -> upsert_source_observations (product_source_observation, FK canonical_product_id)",
+        "label_class -> energy_label_class; agregados IEA -> aggregate_reference"
+      ],
+      "type": "FACT",
+      "confidence": "HIGH",
+      "evidence": [
+        "energy_collector/collector/services/multi_source.py",
+        "energy_collector/collector/models.py::merge_products",
+        "energy_collector/collector/database.py"
+      ]
+    },
+    {
+      "name": "Registry de produto (frontend -> API)",
+      "steps": [
+        "index.html form#registry-form -> app.js handleRegistrySubmit (214)",
+        "payload {userId:Number, productId:UUID, quantity, avgActiveHours, hoursStandby?}",
+        "POST /registryUserProducts -> RegistryUserProductController.create (54)",
+        "userRepository.findById / productRepository.findById (orElseThrow -> RuntimeException sem handler => 500)",
+        "RegistryUserService.createRegistry (duplicata => IllegalStateException => 500)",
+        "horas null -> RegistryCalculator.computeAvgActiveHoursPerDay/computeHoursStandbyPerDay",
+        "registryRepository.save -> tabela registry_user_product",
+        "GET /registryUserProducts/user/{userId} -> userService.findAllProductrs -> getProductRegistry (vazio => ProductEmptyException => 500)",
+        "renderUserProducts (app.js:175) le registry.product/quantity/avgActiveHours/hoursStandby"
+      ],
+      "type": "FACT",
+      "confidence": "HIGH",
+      "evidence": [
+        "src/main/resources/static/app.js",
+        "src/main/java/.../Controllers/RegistryUserProductController.java",
+        "src/main/java/.../Services/Registry/RegistryUserService.java"
+      ]
+    },
+    {
+      "name": "Metricas (frontend -> API)",
+      "steps": [
+        "app.js calculateResults (254) -> Promise.allSettled de 4-5 POSTs",
+        "/api/metrics/users/{total-energy|average-energy|most-consumer-product|standby-consumption-avg|standby-consumption-by-product}",
+        "MetricsController -> ConsumeMetricsService -> ConsumptionCalculator",
+        "BigDecimal serializado como JSON number -> app.js metricListItem (386) sufixa ' kWh'"
+      ],
+      "type": "FACT",
+      "confidence": "HIGH",
+      "evidence": [
+        "src/main/resources/static/app.js:254-298",
+        "src/main/java/.../Controllers/MetricsController.java"
+      ]
+    },
+    {
+      "name": "Login",
+      "steps": [
+        "app.js handleLogin POST /auth/login {id:userId}",
+        "AuthController.login -> AuthService.login (user nao existe => UserNotFoundException)",
+        "catch => authService.register() cria user NOVO com ID gerado (userService.create 'test <uuid>') e retorna 200 SEM cookie",
+        "front mantem userId digitado em localStorage -> chamadas seguintes usam ID inexistente => 500"
+      ],
+      "type": "FACT",
+      "confidence": "HIGH",
+      "evidence": [
+        "src/main/java/.../Controllers/AuthController.java:45-49",
+        "src/main/java/.../Services/Auth/AuthService.java::register",
+        "src/main/java/.../Services/User/UserService.java::create"
+      ]
+    }
+  ],
+  "tests": {
+    "java": {
+      "framework": "JUnit via spring-boot-starter-*-test (pom.xml Boot 4.1.1 parent)",
+      "command": "./mvnw test   (ou ./mvnw -Dtest=ConsumptionCalculatorTest test)",
+      "files": [
+        "src/test/java/.../Services/Consumption/ConsumptionCalculatorTest.java (18 @Test via grep; versao anterior do relatorio dizia 12)",
+        "src/test/java/.../Services/Registry/RegistryCalculatorTest.java (16 @Test via grep; versao anterior dizia 12)",
+        "src/test/java/.../Services/Registry/RegistryUserServiceTest.java (6 @Test)",
+        "src/test/java/.../Services/User/ConsumeMetricsServiceTest.java (11 @Test)",
+        "src/test/java/.../Controllers/MetricsControllerTest.java (18 @Test)",
+        "src/test/java/.../Controllers/ProductControllerTest.java (5 @Test)",
+        "src/test/java/.../Controllers/RegistryUserProductControllerTest.java (7 @Test)",
+        "src/test/java/.../Repository/ProductRepositorySearchTest.java (H2)",
+        "src/test/java/.../InterdisciplinarApplicationTests.java (contextLoads)"
+      ],
+      "coverage_note": "Testes fixam valores atuais (20.0000h standby, 1460.0000 kWh/ano, 0.7000) - mudar formulas quebra esses testes. Nao executados nesta exploracao."
+    },
+    "python": {
+      "framework": "pytest>=8 (energy_collector/requirements.txt); conftest raiz insere energy_collector no sys.path",
+      "command": "cd energy_collector && python -m pytest tests/ -q",
+      "files": [
+        "tests/test_normalization.py (derivados + compute_estimated_cost com tarifa explicita)",
+        "tests/test_models.py, test_bit_identical_uuids.py",
+        "tests/test_multi_source.py, test_cli_multisource.py",
+        "tests/test_database.py",
+        "tests/test_wattsimple.py, test_inmetro.py, test_iea.py, test_socrata_service.py, test_config.py, test_taxonomy.py"
+      ]
+    },
+    "ci": "sem .github/ - nenhum pipeline CI no repositorio"
+  },
+  "documentation": {
+    "README.md": "minimo (1 linha)",
+    "docs/tasks.md": "rascunho DEV: '1. Verficar Conta de gasto anual' (untracked)",
+    "docs/TODO.md": "todo do projeto",
+    "docs/code-review-analysis.md, docs/data_normalizate.md": "analises previas",
+    "docs/arquiteture.drawio": "modelo conceitual parcialmente obsoleto (create.sql comenta campos movidos para registry_user_product)",
+    "conflito code<->doc": "drawio ainda mostra avg_cosume/quantity/avg_active_hours em product; create.sql/README do coletor dizem que campos de uso sairam de product"
+  },
+  "state": {
+    "git": "branch main @ c70d48e (HEAD == commit registrado; worktree SUJA): modified: TODO.md, docs/arquiteture.drawio, pom.xml, src/main/java/.../config/OpenApiConfig.java, src/main/resources/application.properties; untracked: .agents/protocol/, docs/tasks.md",
+    "db": "Postgres local localhost:5432/neondb; .env raiz so tem DB_USER/DB_PASSWORD (Spring usa via spring.config.import); coletor exige DB_HOST/DB_USERNAME/DB_PASSWORD/DATABASE ou DB_URL/DATABASE_URL e nao ha energy_collector/.env -> from_env falharia hoje (UNKNOWN)",
+    "ddl": "spring.jpa.hibernate.ddl-auto=update",
+    "custo": "custo estimado so existe no Python e exige tarifa explicita (DEFAULT_TARIFF_PER_KWH=None); Java/JS nao calculam dinheiro",
+    "db_schema_note": "migrations/create.sql: users(id SERIAL PK, name VARCHAR(50)); product(id UUID PK, name VARCHAR(150), brand/model/category, avg_power_w NUMERIC, annual_energy_kwh NUMERIC - SEM subcategory no SQL, Hibernate ddl-auto=update adiciona); registry_user_product(id UUID PK, user_id INT NOT NULL FK, product_id UUID NOT NULL FK, quantity INT NOT NULL, avg_active_hours NUMERIC, hours_standby NUMERIC, UNIQUE(user_id, product_id)). Entidade JPA NAO anota a UNIQUE - unicidade checada em codigo (RegistryUserService:48-55)."
+  },
+  "updated_at": "2026-10-13T13:31:40.537106+00:00",
+  "calculations": {
+    "note": "Todas as formulas energeticas atuais do backend Java, com arquivo:linha. Observado no codigo (FACT), confidence HIGH salvo indicacao.",
+    "formulas": [
+      {
+        "name": "ConsumptionCalculator.calculate",
+        "location": "src/main/java/cannelo/marques/interdisciplinar/interdisciplinar/Services/Consumption/ConsumptionCalculator.java:69-90",
+        "formula": "kWh = avgPowerW * hours * quantity / 1000 (W_TO_KW L40); hours vem do hoursProvider (getAvgActiveHours ou getHoursStandby)",
+        "behavior": "defensivo: product/avgPowerW/hours/hoursProvider null -> BigDecimal.ZERO; divide por 1000 SEM setScale final -> escala herdada dos inputs",
+        "type": "FACT",
+        "confidence": "HIGH"
+      },
+      {
+        "name": "ConsumptionCalculator.calculateDailyActiveHours",
+        "location": ".../Services/Consumption/ConsumptionCalculator.java:111-130",
+        "formula": "H/dia = (E_ano_kWh * 1000 / P_W) / 365, scale 4 HALF_UP (KWH_TO_WH L43, DAYS_PER_YEAR L46, HOUR_SCALE L49)",
+        "behavior": "null se P ou E null, P<=0, ou ArithmeticException",
+        "type": "FACT",
+        "confidence": "HIGH"
+      },
+      {
+        "name": "RegistryCalculator.computeEquivalentHoursYear",
+        "location": ".../Services/Registry/RegistryCalculator.java:62-72",
+        "formula": "H_eq_ano = 1000 * E_ano / P (KWH_TO_WH L47), safeDivide scale 4 HALF_UP (L168-180)",
+        "behavior": "null se P/E null, P<=0 ou divisor 0; port de energy_collector/collector/normalization.py",
+        "type": "FACT",
+        "confidence": "HIGH"
+      },
+      {
+        "name": "RegistryCalculator.computeEquivalentHoursYearDay",
+        "location": ".../Services/Registry/RegistryCalculator.java:83-90",
+        "formula": "H_eq_dia = H_eq_ano / 365 (DAYS_PER_YEAR L38), scale 4 HALF_UP",
+        "type": "FACT",
+        "confidence": "HIGH"
+      },
+      {
+        "name": "RegistryCalculator.computeDailyHours",
+        "location": ".../Services/Registry/RegistryCalculator.java:113-120",
+        "formula": "[avgActiveHours, hoursStandby] = [H_eq_dia, 24 - H_eq_dia]",
+        "type": "FACT",
+        "confidence": "HIGH"
+      },
+      {
+        "name": "RegistryCalculator.computeAvgActiveHoursPerDay",
+        "location": ".../Services/Registry/RegistryCalculator.java:128-138",
+        "formula": "avgActiveHours/dia = computeEquivalentHoursYearDay(computeEquivalentHoursYear(P, E))",
+        "type": "FACT",
+        "confidence": "HIGH"
+      },
+      {
+        "name": "RegistryCalculator.computeHoursStandbyPerDay",
+        "location": ".../Services/Registry/RegistryCalculator.java:147-157 (overload Product: 160-162)",
+        "formula": "standby/dia = 24 - avgActiveHours (HOURS_PER_DAY L41), scale 4 HALF_UP",
+        "behavior": "null se avgActiveHours null ou fora de [0,24]",
+        "type": "FACT",
+        "confidence": "HIGH"
+      },
+      {
+        "name": "RegistryUserService.createRegistry (resolucao de horas)",
+        "location": ".../Services/Registry/RegistryUserService.java:63-93",
+        "formula": "avgActiveHours = inputDTO ?? RegistryCalculator.computeAvgActiveHoursPerDay(product) (L63-65); hoursStandby = inputDTO ?? RegistryCalculator.computeHoursStandbyPerDay(product) (L67-71); fallback L84-93: se hoursStandby ainda null -> ConsumptionCalculator.calculateDailyActiveHours(P,E) + computeHoursStandbyPerDay(active)",
+        "type": "FACT",
+        "confidence": "HIGH"
+      },
+      {
+        "name": "ConsumeMetricsService.calculateTotalEnergyByUser",
+        "location": ".../Services/User/ConsumeMetricsService.java:36-54",
+        "formula": "soma de ConsumptionCalculator.calculate(up, getAvgActiveHours) sobre todos os registries -> APENAS horas ativas (standby nao entra); lista vazia -> Optional(0) sem excecao",
+        "type": "FACT",
+        "confidence": "HIGH"
+      },
+      {
+        "name": "ConsumeMetricsService.calculateAverageEnergyByUser",
+        "location": ".../Services/User/ConsumeMetricsService.java:57-79 + avg() L167-175",
+        "formula": "mesma soma ativa / numero de registries (scale 2 HALF_UP)",
+        "behavior": "lista vazia -> ProductEmptyException (L67-70) -> 500; divergencia vs calculateTotalEnergyByUser",
+        "type": "FACT",
+        "confidence": "HIGH"
+      },
+      {
+        "name": "ConsumeMetricsService.calculateMostConsumerProduct",
+        "location": ".../Services/User/ConsumeMetricsService.java:82-97",
+        "formula": "max de calculate(up, getAvgActiveHours); filtra product null e avgPowerW null (horas null vira ZERO dentro de calculate)",
+        "behavior": "usa getProductRegistry (L157-164) -> lista vazia lanca ProductEmptyException -> 500",
+        "type": "FACT",
+        "confidence": "HIGH"
+      },
+      {
+        "name": "ConsumeMetricsService.mostConsumerProductsForCategory",
+        "location": ".../Services/User/ConsumeMetricsService.java:100-121",
+        "formula": "filtra category.equalsIgnoreCase(product.category), avgPowerW != null, avgActiveHours != null; ordena DESC por calculate(up, getAvgActiveHours); retorna lista de Product",
+        "behavior": "SEM endpoint HTTP (MetricsByCategoryDTO nao usado por nenhum controller)",
+        "type": "FACT",
+        "confidence": "HIGH"
+      },
+      {
+        "name": "ConsumeMetricsService.calculateStandbyConsumeAvg",
+        "location": ".../Services/User/ConsumeMetricsService.java:124-136 + avg() L167-175",
+        "formula": "soma de calculate(up, getHoursStandby) sobre TODOS os registries / numero de registries (scale 2) -> MEDIA do consumo standby",
+        "behavior": "registries com hoursStandby null contribuem ZERO mas contam no divisor",
+        "type": "FACT",
+        "confidence": "HIGH"
+      },
+      {
+        "name": "ConsumeMetricsService.calculateStandbyConsumesForProduct",
+        "location": ".../Services/User/ConsumeMetricsService.java:139-154",
+        "formula": "soma de calculate(up, getHoursStandby) so dos registries com product.id == product.id -> TOTAL (sem media); sem match -> BigDecimal.ZERO",
+        "type": "FACT",
+        "confidence": "HIGH"
+      },
+      {
+        "name": "ConsumeMetricsService.avg",
+        "location": ".../Services/User/ConsumeMetricsService.java:167-175",
+        "formula": "value / size(scale 2, HALF_UP); divisor = tamanho da LISTA DE REGISTRIES, nao produtos distintos",
+        "type": "FACT",
+        "confidence": "HIGH"
+      }
+    ],
+    "duplications_divergences": [
+      {
+        "type": "FACT",
+        "statement": "DUPLICACAO: calculateDailyActiveHours (ConsumptionCalculator:111-130) e computeEquivalentHoursYear + computeEquivalentHoursYearDay (RegistryCalculator:62-90) implementam a MESMA formula E*1000/P/365 escala 4 HALF_UP em duas classes; RegistryUserService usa as duas rotas para o mesmo valor (L63-71 via RegistryCalculator, L84-93 via ConsumptionCalculator)",
+        "evidence": [
+          ".../ConsumptionCalculator.java:111-130",
+          ".../RegistryCalculator.java:62-90",
+          ".../RegistryUserService.java:63-93"
+        ],
+        "confidence": "HIGH"
+      },
+      {
+        "type": "FACT",
+        "statement": "DUPLICACAO: padrao 'stream map(calculate c/ hoursStandby) -> reduce ZERO add' repetido em calculateStandbyConsumeAvg (L128-133) e calculateStandbyConsumesForProduct (L145-151); soma ativa repetida em calculateTotalEnergyByUser (L47-51) e calculateAverageEnergyByUser (L72-76)",
+        "evidence": [
+          ".../ConsumeMetricsService.java:47-51,72-76,128-133,145-151"
+        ],
+        "confidence": "HIGH"
+      },
+      {
+        "type": "FACT",
+        "statement": "DIVERGENCIA (unidade): calculate() usa horas POR DIA -> resultado DIARIO (kWh/dia), mas endpoints/labels rotulam 'anual' (MetricsController L54-57, L67-70, L95-98; app.js L263-266); nenhum multiplicador por 365 no Java",
+        "evidence": [
+          ".../ConsumptionCalculator.java:69-90",
+          ".../MetricsController.java:54-57",
+          "src/main/resources/static/app.js:263-266"
+        ],
+        "confidence": "HIGH"
+      },
+      {
+        "type": "FACT",
+        "statement": "DIVERGENCIA (lista vazia): total-energy retorna 0; average-energy/standby-avg/most-consumer lancam ProductEmptyException -> 500 (L67-70 e getProductRegistry L157-164)",
+        "evidence": [
+          ".../ConsumeMetricsService.java:36-54,57-79,157-164"
+        ],
+        "confidence": "HIGH"
+      },
+      {
+        "type": "FACT",
+        "statement": "DIVERGENCIA (escala): calculate() nao fixa escala final; avg() fixa scale 2; horas fixam scale 4 - escalas misturadas antes do arredondamento",
+        "evidence": [
+          ".../ConsumptionCalculator.java:85-89",
+          ".../ConsumeMetricsService.java:167-175"
+        ],
+        "confidence": "HIGH"
+      },
+      {
+        "type": "INFERENCE",
+        "statement": "Fallback de RegistryUserService (L84-93) efetivamente redundante: so executa quando computeHoursStandbyPerDay(product) retornou null e, nessas condicoes, calculateDailyActiveHours tambem retorna null ou devolveria o mesmo valor",
+        "evidence": [
+          ".../RegistryUserService.java:69-93",
+          ".../RegistryCalculator.java:147-162",
+          ".../ConsumptionCalculator.java:111-130"
+        ],
+        "confidence": "MEDIUM"
+      }
+    ],
+    "magic_numbers": [
+      {
+        "value": "1000",
+        "meaning": "fator W->kW e kWh->Wh",
+        "where": "ConsumptionCalculator.java:40,43; RegistryCalculator.java:47",
+        "type": "FACT"
+      },
+      {
+        "value": "365",
+        "meaning": "dias/ano",
+        "where": "ConsumptionCalculator.java:46; RegistryCalculator.java:38",
+        "type": "FACT"
+      },
+      {
+        "value": "24",
+        "meaning": "horas/dia (standby)",
+        "where": "RegistryCalculator.java:41",
+        "type": "FACT"
+      },
+      {
+        "value": "4",
+        "meaning": "HOUR_SCALE",
+        "where": "ConsumptionCalculator.java:49; RegistryCalculator.java:44",
+        "type": "FACT"
+      },
+      {
+        "value": "2",
+        "meaning": "scale do avg()",
+        "where": "ConsumeMetricsService.java:167-175",
+        "type": "FACT"
+      },
+      {
+        "value": "quantity<=0 -> 1",
+        "meaning": "default de quantidade",
+        "where": "RegistryUserProductController.java:62; Services/User/UserService.java:50-52",
+        "type": "FACT"
+      },
+      {
+        "value": "TARIFA: inexistente em Java/JS",
+        "meaning": "nenhum custo/preco calculado no backend/frontend; so Python e somente com tarifa EXPLICITA (DEFAULT_TARIFF_PER_KWH=None; compute_estimated_cost exige tariff_per_kwh). Nenhum valor de tarifa hardcoded",
+        "where": "energy_collector/collector/config.py:106-109; energy_collector/collector/normalization.py:344-353",
+        "type": "FACT",
+        "confidence": "HIGH"
+      },
+      {
+        "value": "seed.sql thresholds (LEGADO)",
+        "meaning": ">=1000W -> 4h ativas/20h standby; >=200W -> 8h/16h; superseded pelo calculo continuo",
+        "where": "migrations/seed.sql:36-45",
+        "type": "FACT"
+      }
+    ],
+    "dto_input_contract": {
+      "RegistryUserProductDTO": "record { userId: Integer @NotNull; productId: UUID @NotNull; quantity: int @Min(1); avgActiveHours: BigDecimal @NotNull @Min(0) [sem @Max(24)]; hoursStandby: BigDecimal opcional -> calculado pelo backend } (DTO/RegistryUserProductDTO.java:11-28)",
+      "MetricsByUserDTO": "record { userId: int } - usado por 4 endpoints de metricas",
+      "MetricsStandbyByProductDTO": "record { userId: int; productId: UUID }",
+      "MetricsByCategoryDTO": "record { userId: int; category: String @Size(30) } - NAO exposto por nenhum endpoint",
+      "type": "FACT",
+      "confidence": "HIGH"
+    }
+  },
+  "api_contracts": {
+    "note": "Contratos REST relevantes. Sem @ControllerAdvice no projeto -> RuntimeException vira 500 padrao.",
+    "endpoints": [
+      {
+        "method": "POST",
+        "path": "/registryUserProducts",
+        "handler": "Controllers/RegistryUserProductController.java:53-73",
+        "request": "RegistryUserProductDTO",
+        "response": "200 + RegistryUserProduct (entidade serializada); user/product inexistente ou duplicidade -> 500 (sem handler)",
+        "type": "FACT",
+        "confidence": "HIGH"
+      },
+      {
+        "method": "GET",
+        "path": "/registryUserProducts/user/{userId}",
+        "handler": "Controllers/RegistryUserProductController.java:79-85",
+        "response": "200 + List<RegistryUserProduct>; vazia -> ProductEmptyException -> 500",
+        "type": "FACT",
+        "confidence": "HIGH"
+      },
+      {
+        "method": "POST",
+        "path": "/api/metrics/users/total-energy",
+        "handler": "Controllers/MetricsController.java:58-65",
+        "request": "{userId:int}",
+        "response": "200 + BigDecimal (JSON number); rotulado 'anual' mas calculado com horas/dia",
+        "type": "FACT",
+        "confidence": "HIGH"
+      },
+      {
+        "method": "POST",
+        "path": "/api/metrics/users/average-energy",
+        "handler": "Controllers/MetricsController.java:71-78",
+        "request": "{userId:int}",
+        "response": "200 + BigDecimal (media scale 2); lista vazia -> 500",
+        "type": "FACT",
+        "confidence": "HIGH"
+      },
+      {
+        "method": "POST",
+        "path": "/api/metrics/users/most-consumer-product",
+        "handler": "Controllers/MetricsController.java:84-93",
+        "request": "{userId:int}",
+        "response": "200 + Product | 404 (Optional vazio)",
+        "type": "FACT",
+        "confidence": "HIGH"
+      },
+      {
+        "method": "POST",
+        "path": "/api/metrics/users/standby-consumption-avg",
+        "handler": "Controllers/MetricsController.java:99-106",
+        "request": "{userId:int}",
+        "response": "200 + BigDecimal (media standby scale 2)",
+        "type": "FACT",
+        "confidence": "HIGH"
+      },
+      {
+        "method": "POST",
+        "path": "/api/metrics/users/standby-consumption-by-product",
+        "handler": "Controllers/MetricsController.java:112-121",
+        "request": "{userId:int, productId:UUID}",
+        "response": "200 + BigDecimal (TOTAL standby do produto)",
+        "type": "FACT",
+        "confidence": "HIGH"
+      },
+      {
+        "method": "GET",
+        "path": "/api/metrics/search/{userId}?search=<q>",
+        "handler": "Controllers/MetricsController.java:123-142",
+        "response": "200 + SearchResponseDTO {id,name} (so o primeiro); vazio -> 500",
+        "type": "FACT",
+        "confidence": "HIGH"
+      }
+    ],
+    "frontend_consumers": "app.js:263-272 chama os 5 endpoints de metricas via POST",
+    "not_exposed": "mostConsumerProductsForCategory (ConsumeMetricsService:100-121) nao tem endpoint"
+  }
+}

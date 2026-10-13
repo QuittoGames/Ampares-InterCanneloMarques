@@ -11,7 +11,15 @@ Espelha a tabela ``product`` do banco do projeto Java (FR-003, FR-006):
 * ``avg_power_w`` / ``annual_energy_kwh`` NUMERIC — SOMENTE quando a fonte
   os fornece; ausentes ficam nulos, nunca estimados (A2).
 * ``source`` / ``source_id`` — apenas em memoria: alimentam a chave
-  deterministica e os logs. NUNCA vao ao banco (contrato de 7 colunas).
+  deterministica e os logs. NUNCA vao ao banco.
+
+Contrato canonico (spec secao 1): a tabela ``product`` tem EXATAMENTE os
+8 campos da entidade Java ``cannelo...Models.Product`` (id, name, brand,
+model, category, subcategory, avg_power_w, annual_energy_kwh). Campos de
+proveniencia de fonte (tensao bruta, unidade/periodo original,
+``is_generic``, ``label_class``) ficam SO em memoria neste dataclass e sao
+persistidos exclusivamente nas tabelas de observacao/auxiliares — nunca
+no INSERT de ``product``.
 
 Canonicalizacao da chave (revisao de seguranca R8): NFKC + casefold +
 colapso de whitespace em cada componente, separador fixo ``|`` — o mesmo
@@ -84,6 +92,25 @@ class Product:
     #: fonte declara (INMETRO). So em memoria: vai para a tabela auxiliar
     #: ``energy_label_class`` (PR 2), NUNCA no INSERT da tabela ``product``.
     label_class: str | None = None
+    # ------------------------------------------------------------------ #
+    # PROVENIENCIA de fonte — NUNCA vai ao INSERT de ``product``.
+    # Persistida apenas em ``product_source_observation`` (spec secoes 3/5/7).
+    # ------------------------------------------------------------------ #
+    #: Tensao declarada pela fonte, verbatim (ex.: ``"110 V"``, ``"220 V"``).
+    #: Preserva a diferenca entre rotulo 110 V e especificacao 127 V.
+    voltage_raw: str | None = None
+    #: Classificacao (``collector.voltage``): unknown|monovolt|bivolt|range.
+    #: Default ``unknown``: tensao ausente NUNCA e inferida por pais/estado.
+    voltage_kind: str = "unknown"
+    #: Valor declarado em volts (normalizacao de NOTACAO apenas; o valor
+    #: fisico nunca e convertido — 220 V permanece 220 V).
+    voltage_min_v: Decimal | None = None
+    voltage_max_v: Decimal | None = None
+    #: Energia ANTES de qualquer conversao + unidade/periodo originais
+    #: (ex.: ``30`` + ``"kWh/mes"``; a coluna ``annual_energy_kwh`` guarda
+    #: o valor ja convertido). Rastreabilidade da spec secao 5.
+    raw_energy_value: Decimal | None = None
+    raw_energy_unit: str | None = None
 
     # ------------------------------------------------------------------ #
     # Identidade deterministica
@@ -150,41 +177,31 @@ def stable_uuid(product: Product) -> uuid.UUID:
 
 @dataclass(slots=True)
 class NormalizedProduct:
-    """Produto normalizado + rastreabilidade de fonte e derivados.
+    """Produto normalizado + rastreabilidade de fonte.
 
-    Separa explicitamente tres grupos de dados (requisito de
-    rastreabilidade do normalizer):
+    Separa explicitamente dois grupos de dados (rastreabilidade):
 
-    * ``product`` — a projeção normalizada da fonte. O serviço pode projetá-la
-      em um produto canônico antes da escrita; derivados não entram em
-      ``product``.
-    * ``raw_*`` — SOURCE DATA: valores BRUTOS vindos da API, preservados
-      sem alteracao para auditoria (``raw_power`` e ``raw_annual_energy``).
-    * ``equivalent_*`` / ``estimated_*`` — DERIVED DATA: valores calculados
-      deterministicamente a partir dos dados de origem (ver
-      :mod:`collector.normalization`). Nunca inventados.
+    * ``product`` — a projecao normalizada da fonte. O servico pode
+      projeta-la em um produto canonico antes da escrita.
+    * ``raw_*`` / ``standby_power_w`` — SOURCE DATA: valores BRUTOS vindos
+      da fonte, preservados sem alteracao para auditoria.
 
-    O normalizer nunca sobrescreve o valor original: se um derivado nao
-    puder ser calculado com seguranca (campo ausente, divisao por zero,
-    tarifa ausente), ele fica ``None`` — o registro continua representado
-    por ``product``.
+    O coletor NAO calcula horas equivalentes, custos, consumo diario nem
+    projecoes de perfil de uso: essas formulas pertencem ao motor de
+    calculo Java (Banco de Formulas AMPARES — ver
+    ``docs/formulas``/spec secao 5). Manter uma segunda engine de formulas
+    em Python criaria divergencia entre os dois motores. O normalizer
+    nunca sobrescreve nem inventa valor: campo ausente fica ``None``.
     """
 
     product: Product
     # SOURCE DATA — valores brutos da API (rastreabilidade).
     raw_power: Decimal | None = None
     raw_annual_energy: Decimal | None = None
-    # DERIVED DATA — calculos determinísticos a partir dos dados.
-    equivalent_hours_year: Decimal | None = None
-    equivalent_hours_year_day: Decimal | None = None
-    estimated_daily_energy_kwh: Decimal | None = None
-    estimated_cost: Decimal | None = None
     # Potencia em standby (W) extraida da fonte — SOURCE, carregada para
-    # rastreabilidade. O consumo em standby completo depende de horas ativas
-    # e periodo, que nao sao atributos de catalogo.
+    # rastreabilidade. O consumo em standby completo depende de horas de
+    # uso e periodo, que nao sao atributos de catalogo (calculos Java).
     standby_power_w: Decimal | None = None
-    # Tarifa (moeda/kWh) efetivamente usada nos calculos, quando aplicavel.
-    tariff_per_kwh: Decimal | None = None
 
     # ------------------------------------------------------------------ #
     # Atalhos para os campos canonicos (evita `record.product.avg_power_w`)
@@ -217,7 +234,12 @@ class SourceProductLink:
 
 @dataclass(frozen=True, slots=True)
 class SourceObservation:
-    """Valor de uma representação de fonte, separado da projeção canônica."""
+    """Valor de uma representacao de fonte, separado da projecao canonica.
+
+    Levava APENAS campos de ``product``; agora concentra tambem a
+    proveniencia de fonte (genericidade, tensao declarada, valor/periodo
+    brutos de energia) exigida pelas secoes 3/4/5 da spec.
+    """
 
     id: uuid.UUID
     canonical_product_id: uuid.UUID
@@ -229,6 +251,13 @@ class SourceObservation:
     power_w: Decimal | None
     annual_energy_kwh: Decimal | None
     standby_power_w: Decimal | None
+    is_generic: bool = False
+    voltage_raw: str | None = None
+    voltage_kind: str = "unknown"
+    voltage_min_v: Decimal | None = None
+    voltage_max_v: Decimal | None = None
+    raw_energy_value: Decimal | None = None
+    raw_energy_unit: str | None = None
 
 
 def source_observation(product: Product) -> SourceObservation:
@@ -247,6 +276,13 @@ def source_observation(product: Product) -> SourceObservation:
         power_w=product.avg_power_w,
         annual_energy_kwh=product.annual_energy_kwh,
         standby_power_w=product.standby_power_w,
+        is_generic=product.is_generic,
+        voltage_raw=product.voltage_raw,
+        voltage_kind=product.voltage_kind,
+        voltage_min_v=product.voltage_min_v,
+        voltage_max_v=product.voltage_max_v,
+        raw_energy_value=product.raw_energy_value,
+        raw_energy_unit=product.raw_energy_unit,
     )
 
 
@@ -268,12 +304,36 @@ def source_product_link(product: Product) -> SourceProductLink:
 
 
 def merge_products(products: Sequence[Product]) -> list[Product]:
-    """Cria uma projeção canônica por tipo e calcula médias normalizadas.
+    """Projecao canonica por tipo (secoes 4 e 6 da spec).
 
-    Valores ausentes não participam da média. Os produtos recebidos não são
-    alterados; eles continuam disponíveis para persistência como origem.
+    Regra de agregacao (documentada, ver tambem ``collector.precedence``):
+
+    1. Agrupa por ``canonical_key()`` (``categoria|subcategoria``).
+    2. **Populacao elegivel**: SOMENTE membros de fonte primaria
+       brasileira (INMETRO/PBE e futuras fontes oficiais de fabricante
+       registradas em ``PRIMARY_BR_SOURCES``), nao-genericos. Estangeiras
+       (ENERGY STAR), genericas (WattSimple), agregados e fontes
+       desconhecidas NUNCA contribuem com metricas — podem ate faltar.
+    3. Cada metrica (``avg_power_w`` em W, ``annual_energy_kwh`` em
+       kWh/ano) e a MEDIA ARITMETICA dos membros elegiveis com valor
+       nao-nulo nessa metrica. So agregam valores com unidade, periodo e
+       dominio comprovavelmente comparaveis: a normalizacao de ingestao
+       ja entrega W e kWh/ano (ex.: INMETRO converte kWh/mes -> kWh/ano
+       exatamente uma vez) — uma nova fonte primaria com condicoes de
+       mediacao distintas NAO pode ser adicionada a populacao sem antes
+       normalizar ou excluir sua metrica.
+    4. Sem valor elegivel => metrica ``None`` (indisponivel). NUNCA se
+       fabrica valor nem se mistura fontes incompativeis.
+    5. Mesmo sem metricas, o registro canonico e criado: ele ancora as
+       observacoes de origem (FK de ``product_source_observation``).
+    6. ``label_class`` (ENCE) vem apenas de membros elegiveis.
+
+    Os produtos de origem nao sao alterados; eles persistem como
+    observacoes de origem (``product_source_observation``).
     """
     from collections import defaultdict
+
+    from .precedence import CANONICAL_SOURCE, is_canonical_eligible
 
     groups: dict[str, list[Product]] = defaultdict(list)
     for product in products:
@@ -282,9 +342,10 @@ def merge_products(products: Sequence[Product]) -> list[Product]:
     merged: list[Product] = []
     for members in groups.values():
         representative = members[0]
-        powers = [p.avg_power_w for p in members if p.avg_power_w is not None]
+        eligible = [p for p in members if is_canonical_eligible(p)]
+        powers = [p.avg_power_w for p in eligible if p.avg_power_w is not None]
         annuals = [
-            p.annual_energy_kwh for p in members if p.annual_energy_kwh is not None
+            p.annual_energy_kwh for p in eligible if p.annual_energy_kwh is not None
         ]
         merged.append(
             Product(
@@ -298,12 +359,12 @@ def merge_products(products: Sequence[Product]) -> list[Product]:
                 if annuals
                 else None,
                 standby_power_w=None,
-                source="CANONICAL",
+                source=CANONICAL_SOURCE,
                 source_id=representative.canonical_key(),
                 dataset_category=representative.subcategory,
                 is_generic=False,
                 label_class=next(
-                    (p.label_class for p in members if p.label_class), None
+                    (p.label_class for p in eligible if p.label_class), None
                 ),
             )
         )

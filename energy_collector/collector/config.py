@@ -101,6 +101,18 @@ KNOWN_DATASETS: dict[str, dict[str, str | None]] = {
         "annual": "annual_energy_use_kwh_year",
         "power": None,
     },
+    "t2v6-g4nf": {  # ENERGY STAR Certified Imaging Equipment
+        # O dataset publica APENAS sleep/standby/DFE — NAO existe
+        # "potencia media de uso" (a potencia real de 600-1500W de uma
+        # impressora KIP nao e certificada). ``power=None``: potencia de
+        # uso e NAO INTERPRETAVEL com seguranca (regra da spec). O TEC
+        # anual da maquina e o unico campo util; o DFE e so o front-end.
+        "category": "imaging_equipment",
+        "brand": "brand_name",
+        "model": "model_name",
+        "annual": "typical_electricity_consumption_tec_kwh_yr",
+        "power": None,
+    },
 }
 
 #: Tarifa de energia em moeda/kWh usada nos calculos de custo derivado.
