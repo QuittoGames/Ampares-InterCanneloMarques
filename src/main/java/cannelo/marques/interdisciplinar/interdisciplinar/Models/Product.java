@@ -28,6 +28,15 @@ public class Product {
     @Column(name = "annual_energy_kwh")
     private BigDecimal annualEnergyKwh;
 
+    /**
+     * Potência média em modo standby (W) — atributo DISTINTO de
+     * {@link #avgPowerW} (potência ATIVA). {@code null} = dado ausente /
+     * não calculável; NUNCA deve ser substituída pela potência ativa nem
+     * tratada como zero (decision_004 / SPEC §7).
+     */
+    @Column(name = "avg_idle_energy_for_hour")
+    private BigDecimal avgIdleEnergyForHour;
+
     public Product() {
     }
 
@@ -105,5 +114,13 @@ public class Product {
 
     public void setAnnualEnergyKwh(BigDecimal annualEnergyKwh) {
         this.annualEnergyKwh = annualEnergyKwh;
+    }
+
+    public BigDecimal getAvgIdleEnergyForHour() {
+        return avgIdleEnergyForHour;
+    }
+
+    public void setAvgIdleEnergyForHour(BigDecimal avgIdleEnergyForHour) {
+        this.avgIdleEnergyForHour = avgIdleEnergyForHour;
     }
 }

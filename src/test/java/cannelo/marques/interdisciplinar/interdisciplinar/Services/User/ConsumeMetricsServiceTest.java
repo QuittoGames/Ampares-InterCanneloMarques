@@ -26,6 +26,8 @@ import cannelo.marques.interdisciplinar.interdisciplinar.Models.RegistryUserProd
 import cannelo.marques.interdisciplinar.interdisciplinar.Models.User;
 import cannelo.marques.interdisciplinar.interdisciplinar.Repository.RegistryUserProductRepository;
 import cannelo.marques.interdisciplinar.interdisciplinar.Services.Metrics.ConsumeMetricsService;
+import cannelo.marques.interdisciplinar.interdisciplinar.Services.Metrics.HourService;
+import cannelo.marques.interdisciplinar.interdisciplinar.Services.Metrics.StandbyMetricsService;
 import cannelo.marques.interdisciplinar.interdisciplinar.Services.Tariff.TariffQuote;
 import cannelo.marques.interdisciplinar.interdisciplinar.Services.Tariff.TariffService;
 import cannelo.marques.interdisciplinar.interdisciplinar.exceptions.TariffUnavailableException;
@@ -53,7 +55,11 @@ class ConsumeMetricsServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ConsumeMetricsService(registryRepository, tariffService);
+        // StandbyMetricsService e HourService REAIS: o hub integra com eles
+        // por contrato (zero fórmula duplicada), então o teste usa a
+        // implementação real em vez de mock.
+        service = new ConsumeMetricsService(registryRepository, tariffService,
+                new StandbyMetricsService(new HourService()));
         user = new User(7);
     }
 
@@ -179,15 +185,20 @@ class ConsumeMetricsServiceTest {
     }
 
     // =====================================================================
-    // Standby — nunca calculável enquanto não houver dado confiável (SPEC §7)
+    // Standby — potência ATIVA jamais usada como standby (SPEC §7)
     // =====================================================================
 
     @Test
     void shouldNeverUseActivePowerAsStandby() {
+        // Produto com potência ATIVA (900W) mas SEM potência de standby:
+        // os endpoints dedicados continuam vazios (nunca zero, nunca a ativa).
+        Product activeOnly = product("Any", "electronics", "900");
+        when(registryRepository.findByUser(user))
+                .thenReturn(List.of(registry(activeOnly, "5", 1)));
+
         assertTrue(service.calculateStandbyConsumeAvg(user).isEmpty(),
                 "standby não calculável: avgPowerW NUNCA é potência de standby");
-        assertTrue(service.calculateStandbyConsumesForProduct(user,
-                product("Any", "electronics", "900")).isEmpty());
+        assertTrue(service.calculateStandbyConsumesForProduct(user, activeOnly).isEmpty());
     }
 
     // =====================================================================

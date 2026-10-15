@@ -1,0 +1,12 @@
+- region "Login" [ref=f2e2]:
+  - generic [ref=f2e3]:
+    - button "Gerenciador de Gastos Energéticos — abrir área restrita para digitar ID manualmente" [ref=f2e4] [cursor=pointer]:
+      - generic [ref=f2e7]: Gerenciador de Gastos Energéticos
+    - heading "Seu consumo, sob controle" [level=1] [ref=f2e8]: Seu consumo,sob controle
+    - paragraph [ref=f2e9]: Veja quanto seus aparelhos consomem de energia.
+    - generic [ref=f2e10]:
+      - generic [ref=f2e11]: ID do usuário
+      - button "Começar agora" [ref=f2e12] [cursor=pointer]:
+        - text: Começar agora
+        - generic [aria-hidden] [ref=f2e13]: →
+    - status [ref=f2e14]

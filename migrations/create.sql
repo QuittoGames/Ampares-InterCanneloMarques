@@ -8,7 +8,7 @@
 --   * energy_collector/collector/database.py            (DDL canônico da tabela product)
 --   * energy_collector/README.md                        (refactor: campos de USO saíram de
 --                                                       product e foram para registry_user_product)
---   * docs/arquiteture.drawio                           (espelha os 8 campos de Product;
+--   * docs/arquiteture.drawio                           (espelha os campos de Product;
 --                                                       proveniencia/uso em outras tabelas)
 --
 -- Ordem importa: registry_user_product referencia users e product, então vem por último.
@@ -29,23 +29,31 @@ CREATE TABLE IF NOT EXISTS users (
 --    Espelha exatamente a entidade JPA. O coletor Python popula esta MESMA
 --    tabela (apenas atributos intrínsecos do aparelho).
 --
---    OBS: o desenho arquiteture.drawio agora espelha EXATAMENTE estes 8
---    campos (spec "Brazil-Aware Product Normalization"). Os campos de USO
---    (quantity, avg_active_hours, hours_standby) vivem em
---    registry_user_product; standby_power_w, is_generic, tensao declarada
---    (voltage_*) e valores brutos de energia vivem em
---    product_source_observation (migrations 004/005). O diagrama nao tem
---    mais avg_cosume/avg_idle_energy_for_hour em Product.
+--    CONTRATO DE 9 COLUNAS (decisão do DEV): além dos 8 campos
+--    intrínsecos, product carrega avg_idle_energy_for_hour — a potência
+--    de standby (W), atributo DISTINTO de avg_power_w (potência ativa).
+--    A migration aditiva migrations/add_avg_idle_energy_for_hour.sql
+--    documenta a mesma coluna para bancos existentes (Hibernate
+--    ddl-auto=update também a cria a partir da entidade Product).
+--
+--    OBS: os campos de USO (quantity, avg_active_hours, hours_standby)
+--    vivem em registry_user_product; standby_power_w de PROVENIÊNCIA
+--    multi-fonte, is_generic, tensao declarada (voltage_*) e valores
+--    brutos de energia vivem em product_source_observation (migrations
+--    004/005). avg_cosume NUNCA esteve em Product. O diagrama
+--    docs/arquiteture.drawio pode estar desatualizado quanto a
+--    avg_idle_energy_for_hour.
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS product (
-    id                UUID PRIMARY KEY,
-    name              VARCHAR(150),
-    brand             VARCHAR(255),
-    model             VARCHAR(255),
-    category          VARCHAR(255),
-    subcategory       VARCHAR(255),
-    avg_power_w       NUMERIC,
-    annual_energy_kwh NUMERIC
+    id                        UUID PRIMARY KEY,
+    name                      VARCHAR(150),
+    brand                     VARCHAR(255),
+    model                     VARCHAR(255),
+    category                  VARCHAR(255),
+    subcategory               VARCHAR(255),
+    avg_power_w               NUMERIC,
+    annual_energy_kwh         NUMERIC,
+    avg_idle_energy_for_hour  NUMERIC
 );
 
 

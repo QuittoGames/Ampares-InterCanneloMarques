@@ -1,0 +1,13 @@
+- region "Login" [ref=f1e2]:
+  - generic [ref=f1e3]:
+    - button "Gerenciador de Gastos Energéticos — abrir área restrita para digitar ID manualmente" [expanded] [ref=f1e4] [cursor=pointer]:
+      - generic [ref=f1e7]: Gerenciador de Gastos Energéticos
+    - heading "Seu consumo, sob controle" [level=1] [ref=f1e8]: Seu consumo,sob controle
+    - paragraph [ref=f1e9]: Veja quanto seus aparelhos consomem de energia.
+    - generic [ref=f1e10]:
+      - generic [ref=f1e11]: ID do usuário
+      - spinbutton "ID do usuário" [active] [ref=f1e16]: "3997368"
+      - button "Começar agora" [ref=f1e12] [cursor=pointer]:
+        - text: Começar agora
+        - generic [aria-hidden] [ref=f1e13]: →
+    - status [ref=f1e14]: "Falha no login: <!DOCTYPE HTML> <html lang=\"en\"> <head> <meta charset=\"utf-8\"> <style type=\"text/css\"> :root { color-scheme: light dark; } </style> <title>Error response</title> </head> <body> <h1>Error response</h1> <p>Error code: 501</p> <p>Message: Unsupported method ('POST').</p> <p>Error code explanation: 501 - Server does not support this operation.</p> </body> </html>"
