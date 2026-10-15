@@ -26,7 +26,8 @@ import cannelo.marques.interdisciplinar.interdisciplinar.exceptions.ProductNotFo
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.constraints.NotBlank;
+
+import jakarta.validation.Valid;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -54,7 +55,7 @@ public class MetricsController {
     }
 
     @PostMapping("/users/calculate")
-    public ResponseEntity<ResultDTO> calculateUser(@RequestBody @NotBlank MetricsByUserDTO dto) {
+    public ResponseEntity<ResultDTO> calculateUser(@RequestBody @Valid MetricsByUserDTO dto) {
         User user = userRepository.findById(dto.userId())
                 .orElseThrow(() -> new UserNotFoundException("User not found: " + dto.userId()));
 
@@ -68,7 +69,7 @@ public class MetricsController {
         description = "Retorna a média do consumo anual em kWh entre os produtos registrados por um usuário."
     )
     @PostMapping("/users/average-energy")
-    public ResponseEntity<BigDecimal> averageEnergyByUser(@RequestBody MetricsByUserDTO dto) {
+    public ResponseEntity<BigDecimal> averageEnergyByUser(@RequestBody @Valid MetricsByUserDTO dto) {
         User user = userRepository.findById(dto.userId())
                 .orElseThrow(() -> new UserNotFoundException("User not found: " + dto.userId()));
 
@@ -81,7 +82,7 @@ public class MetricsController {
         description = "Retorna o Product (entidade JPA) com maior avgPowerW × avgActiveHours."
     )
     @PostMapping("/users/most-consumer-product")
-    public ResponseEntity<Product> mostConsumerProduct(@RequestBody MetricsByUserDTO dto) {
+    public ResponseEntity<Product> mostConsumerProduct(@RequestBody @Valid MetricsByUserDTO dto) {
         User user = userRepository.findById(dto.userId())
                 .orElseThrow(() -> new UserNotFoundException("User not found: " + dto.userId()));
 
@@ -96,7 +97,7 @@ public class MetricsController {
         description = "Retorna a média do consumo anual em standby (kWh) entre os produtos do usuário."
     )
     @PostMapping("/users/standby-consumption-avg")
-    public ResponseEntity<BigDecimal> standbyConsumeAvg(@RequestBody MetricsByUserDTO dto) {
+    public ResponseEntity<BigDecimal> standbyConsumeAvg(@RequestBody @Valid MetricsByUserDTO dto) {
         User user = userRepository.findById(dto.userId())
                 .orElseThrow(() -> new UserNotFoundException("User not found: " + dto.userId()));
 

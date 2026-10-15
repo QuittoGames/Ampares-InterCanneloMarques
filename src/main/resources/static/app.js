@@ -5,9 +5,6 @@ const state = {
     lastProductId: '',
 };
 
-/** Formatação monetária BRL (R$) — usada nos custos do ResultDTO. */
-const brlFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
-
 const loginSection = document.getElementById('login-section');
 const registrySection = document.getElementById('registry-section');
 const loginForm = document.getElementById('login-form');
@@ -189,16 +186,14 @@ function renderUserProducts() {
 /** Detalhes de um registro de produto no mesmo formato da lista "Produtos em uso". */
 function formatRegistryDetails(registry) {
     const product = registry.product || {};
+    const activeHours = Units.formatHoursPerDay(registry.avgActiveHours);
+    const standbyHours = Units.formatHoursPerDay(registry.hoursStandby);
 
     return [
         formatProduct(product),
         `Quantidade: ${registry.quantity ?? 0}`,
-        registry.avgActiveHours !== null && registry.avgActiveHours !== undefined
-            ? `Ativo: ${registry.avgActiveHours} h/dia`
-            : '',
-        registry.hoursStandby !== null && registry.hoursStandby !== undefined
-            ? `Standby: ${registry.hoursStandby} h/dia`
-            : '',
+        activeHours ? `Ativo: ${activeHours}` : '',
+        standbyHours ? `Standby: ${standbyHours}` : '',
     ].filter(Boolean).join(' · ');
 }
 
@@ -285,12 +280,21 @@ function renderCalculationResult(result) {
     const list = document.createElement('ul');
     list.className = 'results__list';
 
-    list.appendChild(metricRow('Consumo médio diário', `${result.avgDailyKwh} kWh/dia`));
-    list.appendChild(metricRow('Consumo médio anual', `${result.avgUseInYear} kWh/ano`));
+    const avgDailyKwh = Units.formatEnergyKwh(result.avgDailyKwh, 'dia');
+    const avgAnnualKwh = Units.formatEnergyKwh(result.avgUseInYear, 'ano');
+
+    // Linha só entra quando há valor formatado (evita label órfão com '').
+    if (avgDailyKwh) {
+        list.appendChild(metricRow('Consumo médio diário', avgDailyKwh));
+    }
+
+    if (avgAnnualKwh) {
+        list.appendChild(metricRow('Consumo médio anual', avgAnnualKwh));
+    }
 
     if (result.dailyCost != null && result.annualCost != null) {
-        list.appendChild(metricRow('Gasto por dia', brlFormatter.format(result.dailyCost)));
-        list.appendChild(metricRow('Gasto por ano', brlFormatter.format(result.annualCost)));
+        list.appendChild(metricRow('Gasto por dia', Units.formatBrl(result.dailyCost)));
+        list.appendChild(metricRow('Gasto por ano', Units.formatBrl(result.annualCost)));
     }
 
     (result.productsList || []).forEach((registry) => {
@@ -372,9 +376,9 @@ function extractIdFromSelfLink(resource) {
 
 function formatProduct(product) {
     const parts = [product.name, product.brand, product.model].filter(Boolean).join(' - ');
-    const power = product.avgPowerW ? ` (${product.avgPowerW} W)` : '';
+    const power = Units.formatPowerW(product.avgPowerW);
 
-    return `${parts || product.id}${power}`;
+    return `${parts || product.id}${power ? ` (${power})` : ''}`;
 }
 
 function replaceOptions(select, options) {

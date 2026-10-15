@@ -1,13 +1,13 @@
 {
   "name": "codebase report",
-  "updated_at": "2026-10-13T23:01:44.358890+00:00",
+  "updated_at": "2026-10-15T17:20:45.350055+00:00",
   "git": {
     "branch": "main",
-    "commit": "a1d9415e3cb863986a0d46af73ece22cc51a01c3"
+    "commit": "41b9a8460ed286da9af438cec785b742dc015d6b"
   },
   "scope": {
     "type": "FACT",
-    "statement": "Regeneracao completa (GENERAL EXPLORATION) em 13/10/2026 apos a refatoracao grande (registro/motor unificado/tarifa/standby integrado + coletor Brazil-aware). O relatorio descreve a WORKTREE ATUAL: HEAD a1d9415 ('Fix', commit feito ~19:50 DURANTE esta exploracao) + os arquivos da integracao final de standby ainda NAO commitados (Product.java, ConsumeMetricsService.java, StandbyMetricsService.java, ConsumeMetricsServiceTest.java, migrations/create.sql, +2 testes novos). Suite Java verificada nesta exploracao: 193 testes verdes (./mvnw test, 13/10/2026 19:19:38). Paths Java abreviados: 'src/main/java/cannelo/marques/interdisciplinar/interdisciplinar/' => '.../'.",
+    "statement": "ATUALIZACAO PARCIAL (UPDATE) em 15/10/2026 sobre o relatorio base de 13/10/2026 (cache STALE: HEAD avancou de a1d9415 para 41b9a84). O commit 41b9a84 (15/10 13:40) commitou a integracao final de standby que estava SUJA na worktree em 13/10 (create.sql, Product.java, ConsumeMetricsService.java, StandbyMetricsService.java, ConsumeMetricsServiceTest.java + 2 testes novos) — conteudo dos arquivos de standby NAO divergiu do ja descrito no relatorio base. Worktree SUJA apenas com mudanca de bean validation NAO commitada: MetricsController.java (@NotBlank->@Valid em 4 endpoints) e MetricsByUserDTO.java (@Positive userId). Suite Java re-verificada: ./mvnw clean test => 193 testes verdes (15/10 ~14:10). Frontend static/ inalterado desde a1d9415 e ja coberto pelo relatorio base. Paths Java abreviados: 'src/main/java/cannelo/marques/interdisciplinar/interdisciplinar/' => '.../'.",
     "confidence": "HIGH"
   },
   "language": [
@@ -599,7 +599,7 @@
     {
       "module": "Controllers (web layer)",
       "path": "src/main/java/.../Controllers/",
-      "responsibility": "AuthController (login/logout), MetricsController (/api/metrics: calculate + 4 legados + search; sem total-energy/by-category), ProductController (GET /products com search/size), RegistryUserProductController (POST /registryUserProducts com ProductForRegistry @Valid; GET /user/{userId}). Sem @ControllerAdvice.",
+      "responsibility": "AuthController (login/logout com @Valid LoginDTO), MetricsController (/api/metrics: calculate + 4 legados + search; sem total-energy/by-category; bean validation: @Valid MetricsByUserDTO @Positive userId em 4 endpoints — mudanca nao commitada 15/10), ProductController (GET /products com search/size), RegistryUserProductController (POST /registryUserProducts com ProductForRegistry @Valid; GET /user/{userId}). Sem @ControllerAdvice.",
       "depends_on": [
         "Services",
         "Repositories",
@@ -612,7 +612,7 @@
       "confidence": "HIGH",
       "evidence": [
         ".../Controllers/AuthController.java:40-57",
-        ".../Controllers/MetricsController.java:56-141",
+        ".../Controllers/MetricsController.java:57-143",
         ".../Controllers/ProductController.java:35-51",
         ".../Controllers/RegistryUserProductController.java:74-92"
       ]
@@ -813,7 +813,7 @@
       "confidence": "HIGH",
       "evidence": [
         "src/main/resources/static/app.js:252-301",
-        ".../Controllers/MetricsController.java:56-64",
+        ".../Controllers/MetricsController.java:57-65",
         ".../Services/Metrics/ConsumeMetricsService.java:296-351",
         ".../DTO/ResultDTO.java:46-68"
       ]
@@ -833,7 +833,7 @@
       "evidence": [
         ".../Services/Metrics/StandbyMetricsService.java:74-153",
         ".../Services/Metrics/ConsumeMetricsService.java:202-240,472-523,558-564",
-        ".../Controllers/MetricsController.java:98-120"
+        ".../Controllers/MetricsController.java:99-121"
       ]
     },
     {
@@ -859,9 +859,9 @@
       "framework": "JUnit 5 (Spring Boot 4.1.1 starters de test) + Mockito; @DataJpaTest com H2Dialect em testes de repositorio",
       "command": "./mvnw test",
       "last_verified": {
-        "date": "2026-10-13 19:19:38 -03:00",
-        "result": "Tests run: 193, Failures: 0, Errors: 0, Skipped: 0 — BUILD SUCCESS",
-        "by": "codebase-explorer (esta exploracao)"
+        "date": "2026-10-15 ~14:10 -03:00",
+        "result": "Tests run: 193, Failures: 0, Errors: 0, Skipped: 0 — BUILD SUCCESS (./mvnw clean test)",
+        "by": "codebase-explorer (atualizacao parcial 15/10)"
       },
       "classes": [
         "Controllers.MetricsControllerTest (18)",
@@ -880,7 +880,7 @@
         "Services.Tariff.TariffServiceTest (10)",
         "Services.User.ConsumeMetricsServiceTest (20)"
       ],
-      "coverage_note": "Testes fixam valores deterministas (ex.: 100Wx5hx2=1 kWh/dia; 1.032 kWh/dia com standby; custos 1.10/399.70 com tarifa 1.06110; standby 2Wx8hx2=11.68 kWh/ano). Suite real 193 testes — o numero 186 do briefing era anterior a integracao de standby (StandbyMetricsServiceTest + IntegrationTest adicionados).",
+      "coverage_note": "Testes fixam valores deterministas (ex.: 100Wx5hx2=1 kWh/dia; 1.032 kWh/dia com standby; custos 1.10/399.70 com tarifa 1.06110; standby 2Wx8hx2=11.68 kWh/ano). Suite real 193 testes (re-confirmada 15/10 via clean test). QUIRK surefire/JUnit 6.0.3: nos runs completos os .txt por classe mostram 'Tests run: 0' no sumario da classe pai das 4 classes @Nested (ConsumptionCalculatorTest, HourServiceTest, StandbyMetricsServiceTest, ConsumeMetricsServiceStandbyIntegrationTest) — os testes EXECUTAM (aggregate console 193; runs -Dtest confirmam 32/16/23/14); nao interpretar 'Tests run: 0' no .txt como teste nao executado. O numero 186 do briefing era anterior a integracao de standby (StandbyMetricsServiceTest + IntegrationTest adicionados).",
       "removed_vs_previous_report": "ConsumptionCalculatorTest (Services/Consumption) e RegistryCalculatorTest DELETADOS junto com as classes antigas; relatorio surefire de RegistryCalculatorTest e residuo de execucao anterior (classe nao existe mais)."
     },
     "python": {
@@ -911,17 +911,18 @@
     "conflito code<->doc remanescente": "drawio (8 campos) e teste de sinergia Python vs create.sql/Product.java (9 campos, avg_idle_energy_for_hour) desde 13/10 18:27/18:36"
   },
   "state": {
-    "git": "branch main @ a1d9415 ('Fix' — commit de 13/10 ~19:50 feito DURANTE esta exploracao; capturou a refatoracao ate antes da integracao final de standby, que ficou FORA do commit e segue na worktree). Worktree ainda SUJA exatamente com a integracao de standby: M Models/Product.java, Services/Metrics/ConsumeMetricsService.java, Services/Metrics/StandbyMetricsService.java, Services/User/ConsumeMetricsServiceTest.java, migrations/create.sql; ?? Services/Metrics/StandbyMetricsServiceTest.java, Services/Metrics/ConsumeMetricsServiceStandbyIntegrationTest.java; ?? .playwright-mcp/*.log|*.yml (evidencia de sessao Playwright ~18:22); M .agents/protocol/docs/codebase-explorer.json (este relatorio, gravado apos o commit). .agents/**, .opencode/, .specify/, docs, energy_collector e o restante da refatoracao entraram no commit 'Fix'.",
-    "worktree_changes_during_exploration": "Atividade de edicao detectada durante a exploracao (13/10 18:27-18:47: standby integrado — Product.avgIdleEnergyForHour, StandbyMetricsService, hub 3-arg, create.sql 9 colunas, testes novos). Ultima edicao de src/: 18:47:39; suite re-verificada verde as 19:19:38; sem edicoes de codigo posteriores. Durante a exploracao houve tambem um commit parcial ('Fix' a1d9415, ~19:50) que NAO incluiu os arquivos da integracao de standby (seguem modificados/untracked na worktree).",
+    "git": "branch main @ 41b9a84 ('Add unit tests for ConsumptionCalculator, HourService, ProductForRegistryConverter, and TariffService', 15/10/2026 13:40-03:00). NOTA (FACT): apesar da mensagem focar em testes, o diff real do commit = integracao final de standby que estava suja na worktree em 13/10 (migrations/create.sql 9 colunas, Models/Product.java +avgIdleEnergyForHour, Services/Metrics/ConsumeMetricsService.java, Services/Metrics/StandbyMetricsService.java, Services/User/ConsumeMetricsServiceTest.java) + 2 testes novos (ConsumeMetricsServiceStandbyIntegrationTest, StandbyMetricsServiceTest) + .agents/protocol/docs/codebase-explorer.json (relatorio de 13/10) + .playwright-mcp/*.log|*.yml. Worktree SUJA (nao commitado): M Controllers/MetricsController.java, M DTO/MetricsByUserDTO.java.",
+    "worktree_changes_during_exploration": "15/10 ~14:00-14:15 (re-verificacao parcial pelo codebase-explorer): mudanca NAO commitada encontrada na worktree — bean validation em MetricsByUserDTO: record MetricsByUserDTO(@Positive int userId) + @Valid nos 4 endpoints que o consomem no MetricsController (calculate:57-65, average-energy:71-77, most-consumer-product:84-92, standby-consumption-avg:99-105); import @NotBlank removido. standby-consumption-by-product (MetricsStandbyByProductDTO) e /search/{userId} permanecem SEM validacao de bean. Efeito pratico: userId<=0 agora gera 400 nas bordas MVC desses 4 endpoints (anotacoes inertes nos testes unitarios existentes, que chamam o controller direto; NAO verificado via HTTP/MockMvc). Nenhuma outra edicao de src/ ou static/ entre a1d9415 e 41b9a84 (static/ sem commits desde a1d9415); TODO.md, .agents/decisions/, .agents/specs/, energy_collector/ e docs/ inalterados entre os 2 commits.",
     "db": "Postgres local localhost:5432/neondb (Postgres 18.6); migrado do Neon; backup em backups/neondb_backup_20261013_162001.dump; registros atuais no TODO (nao re-verificados nesta exploracao): 253 product, 685 observacoes, 3 ENCE",
     "ddl": "spring.jpa.hibernate.ddl-auto=update; SEM Flyway; migrations versionadas como fonte canonica (004/005/006 + add_avg_idle_energy_for_hour.sql); Hibernate tambem aplica colunas a partir das entidades",
     "db_schema_note": "product: id UUID PK, name/brand/model/category/subcategory VARCHAR, avg_power_w NUMERIC, annual_energy_kwh NUMERIC, avg_idle_energy_for_hour NUMERIC (9 colunas — create.sql). product_source_observation: id UUID PK, canonical_product_id FK, source+external_id UNIQUE, power_w, annual_energy_kwh, standby_power_w, is_generic, voltage_raw/kind/min_v/max_v, raw_energy_value/unit, observed_at. registry_user_product: id UUID PK, user_id INT FK NOT NULL, product_id UUID FK NOT NULL, quantity INT NOT NULL, avg_active_hours NUMERIC, hours_standby NUMERIC, UNIQUE(user_id, product_id) no SQL (nao anotada na entidade; checada em codigo). users: id SERIAL PK, name VARCHAR(50).",
     "energia_standby_pratica": "O campo product.avg_idle_energy_for_hour existe no JPA e no DDL, mas NENHUM produtor o popula hoje (coletor grava standby_power_w somente em product_source_observation, que nao tem entidade JPA; fontes INMETRO/WattSimple retornam standby_power_w=None). Efeito pratico: na maioria dos produtos o standby sera nao calculavel (endpoints dedicados vazios; total = ativo). Populacao/backfill pendente de decisao.",
     "collector_runtime": "energy_collector/.env presente (nao lido; contem DB_URL do role restrito apos TASK-035); .env raiz contem DB_USER/DB_PASSWORD para o Spring; .env.bak_20261013 preservado",
     "verified_commands": [
-      "./mvnw test => Tests run: 193, Failures: 0, Errors: 0, Skipped: 0 — BUILD SUCCESS (2026-10-13T19:19:38-03:00)",
-      "python3 -m pytest energy_collector/tests/test_brazil_normalization.py::TestCanonicalContractAgreement -q => 1 failed, 2 passed (contrato 8 vs 9 campos)",
-      "git log => HEAD = a1d9415 'Fix' (commit parcial durante a exploracao; integracao de standby nao incluida)"
+      "./mvnw clean test => Tests run: 193, Failures: 0, Errors: 0, Skipped: 0 — BUILD SUCCESS (2026-10-15 ~14:10-03:00; clean para descartar build incremental; Postgres 18.6 local conectou no contextLoads)",
+      "./mvnw test -Dtest=ConsumptionCalculatorTest,HourServiceTest,StandbyMetricsServiceTest,ConsumeMetricsServiceStandbyIntegrationTest => 32+16+23+14 = 85 testes @Nested verdes (15/10, execucao isolada)",
+      "python3 -m pytest energy_collector/tests/test_brazil_normalization.py::TestCanonicalContractAgreement -q => 1 failed, 2 passed (contrato 8 vs 9 campos; verificado em 13/10, energy_collector INALTERADO desde entao — nao re-executado em 15/10)",
+      "git log a1d9415..HEAD => 1 commit (41b9a84, 15/10 13:40); git status => 2 arquivos dirty (MetricsController.java, MetricsByUserDTO.java)"
     ]
   },
   "calculations": {
@@ -1060,7 +1061,7 @@
     ]
   },
   "api_contracts": {
-    "note": "Contratos REST atuais (13/10/2026). Sem @ControllerAdvice: excecoes de dominio viram 500; 400 apenas por bean validation (@Valid/@NotBlank) nas bordas.",
+    "note": "Contratos REST atuais (15/10/2026). Sem @ControllerAdvice: excecoes de dominio viram 500; 400 apenas por bean validation nas bordas. ATUALIZACAO NAO COMMITADA (worktree 15/10): MetricsByUserDTO ganhou @Positive em userId e os endpoints calculate/average-energy/most-consumer-product/standby-consumption-avg passaram a usar @Valid — userId<=0 agora resulta em 400; standby-consumption-by-product (MetricsStandbyByProductDTO) e /search/{userId} seguem SEM validacao de bean.",
     "endpoints": [
       {
         "method": "POST",
@@ -1097,42 +1098,42 @@
       {
         "method": "POST",
         "path": "/api/metrics/users/calculate",
-        "handler": ".../Controllers/MetricsController.java:56-64",
-        "request": "MetricsByUserDTO {userId:int}",
-        "response": "200 + ResultDTO (medias/totais/custos/productsList) | 404 quando nao calculavel | 500 user inexistente/tarifa indisponivel"
+        "handler": ".../Controllers/MetricsController.java:57-65",
+        "request": "MetricsByUserDTO {userId:int @Positive} (@Valid — mudanca nao commitada 15/10; userId<=0 -> 400)",
+        "response": "200 + ResultDTO (medias/totais/custos/productsList) | 400 userId<=0 (nao commitado) | 404 quando nao calculavel | 500 user inexistente/tarifa indisponivel"
       },
       {
         "method": "POST",
         "path": "/api/metrics/users/average-energy",
-        "handler": ".../Controllers/MetricsController.java:70-77",
-        "request": "{userId:int}",
-        "response": "200 + BigDecimal (media anual TOTAL por associacao; escala 6); vazio -> ZERO (orElse)"
+        "handler": ".../Controllers/MetricsController.java:71-77",
+        "request": "{userId:int @Positive} (@Valid — nao commitado; userId<=0 -> 400)",
+        "response": "200 + BigDecimal (media anual TOTAL por associacao; escala 6); vazio -> ZERO (orElse); 400 userId<=0 (nao commitado)"
       },
       {
         "method": "POST",
         "path": "/api/metrics/users/most-consumer-product",
-        "handler": ".../Controllers/MetricsController.java:83-92",
-        "request": "{userId:int}",
-        "response": "200 + Product (entity JPA) | 404 se vazio"
+        "handler": ".../Controllers/MetricsController.java:84-92",
+        "request": "{userId:int @Positive} (@Valid — nao commitado; userId<=0 -> 400)",
+        "response": "200 + Product (entity JPA) | 404 se vazio | 400 userId<=0 (nao commitado)"
       },
       {
         "method": "POST",
         "path": "/api/metrics/users/standby-consumption-avg",
-        "handler": ".../Controllers/MetricsController.java:98-105",
-        "request": "{userId:int}",
-        "response": "200 + BigDecimal ANUAL (media sobre calculaveis; escala 6); vazio -> ZERO (orElse)"
+        "handler": ".../Controllers/MetricsController.java:99-105",
+        "request": "{userId:int @Positive} (@Valid — nao commitado; userId<=0 -> 400)",
+        "response": "200 + BigDecimal ANUAL (media sobre calculaveis; escala 6); vazio -> ZERO (orElse); 400 userId<=0 (nao commitado)"
       },
       {
         "method": "POST",
         "path": "/api/metrics/users/standby-consumption-by-product",
-        "handler": ".../Controllers/MetricsController.java:111-120",
+        "handler": ".../Controllers/MetricsController.java:112-121",
         "request": "{userId:int, productId:UUID}",
         "response": "200 + BigDecimal ANUAL do produto; vazio -> ZERO (orElse); produto inexistente -> 500 ProductNotFoundException"
       },
       {
         "method": "GET",
         "path": "/api/metrics/search/{userId}?search=",
-        "handler": ".../Controllers/MetricsController.java:122-141",
+        "handler": ".../Controllers/MetricsController.java:123-141",
         "response": "200 + SearchResponseDTO {productId, productName} (primeiro match); vazio/inexistente -> 500 ProductNotFoundException"
       },
       {
@@ -1222,6 +1223,10 @@
     {
       "type": "FACT",
       "statement": ".agents/AGENTS.md, RULES.md, TODO.md e VISUALSPEC.md estao vazios (0 bytes) — sem regras locais efetivas em .agents."
+    },
+    {
+      "type": "FACT",
+      "statement": "Mudanca de bean validation (MetricsByUserDTO @Positive + @Valid em 4 endpoints do MetricsController) esta NA WORKTREE sem commit em 15/10 — comportamento 400 por userId<=0 nao esta no historico git e nao foi verificado via HTTP/MockMvc (apenas inspecao de codigo; testes unitarios existentes chamam o controller direto e nao exercitam a validacao)."
     }
   ]
 }
