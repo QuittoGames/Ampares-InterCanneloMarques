@@ -420,3 +420,90 @@ psycopg_pool.PoolTimeout: couldn't get a connection after 30.00 sec
 2026-10-13 16:38:22,975 INFO  inmetro_pbe_refrigeradores_x inmetro_refrigerators       542         0         3           0  ok
 2026-10-13 16:38:22,975 INFO  ------------------------------------------------------------------------------
 2026-10-13 16:38:22,975 INFO  TOTAL: recebidos=542 inseridos=0 duplicatas=3 descartados=0 | 0.8s
+2026-10-15 17:53:34,153 INFO  Socrata: anonimo | rate limit: 4.0 req/s
+2026-10-15 17:54:04,508 ERROR Erro inesperado
+Traceback (most recent call last):
+  File "D:\Projects\Java\Ampares-InterCanneloMarques\energy_collector\collector\database.py", line 152, in verify_schema
+    with pool.connection() as conn:
+         ~~~~~~~~~~~~~~~^^
+  File "C:\Users\Quitto\AppData\Local\Programs\Python\Python314\Lib\contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "C:\Users\Quitto\AppData\Local\Programs\Python\Python314\Lib\site-packages\psycopg_pool\pool.py", line 184, in connection
+    conn = self.getconn(timeout=timeout)
+  File "C:\Users\Quitto\AppData\Local\Programs\Python\Python314\Lib\site-packages\psycopg_pool\pool.py", line 218, in getconn
+    raise PoolTimeout(
+        f"couldn't get a connection after {timeout:.2f} sec"
+    ) from None
+psycopg_pool.PoolTimeout: couldn't get a connection after 30.00 sec
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\Projects\Java\Ampares-InterCanneloMarques\energy_collector\data_collector.py", line 266, in main
+    verify_schema(pool)
+    ~~~~~~~~~~~~~^^^^^^
+  File "D:\Projects\Java\Ampares-InterCanneloMarques\energy_collector\collector\database.py", line 155, in verify_schema
+    raise PersistenceError(f"Falha ao verificar o schema: {exc}") from exc
+collector.exceptions.PersistenceError: Falha ao verificar o schema: couldn't get a connection after 30.00 sec
+2026-10-15 17:54:19,806 INFO  Socrata: anonimo | rate limit: 4.0 req/s
+2026-10-15 17:54:50,127 ERROR Erro inesperado
+Traceback (most recent call last):
+  File "D:\Projects\Java\Ampares-InterCanneloMarques\energy_collector\collector\database.py", line 152, in verify_schema
+    with pool.connection() as conn:
+         ~~~~~~~~~~~~~~~^^
+  File "C:\Users\Quitto\AppData\Local\Programs\Python\Python314\Lib\contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "C:\Users\Quitto\AppData\Local\Programs\Python\Python314\Lib\site-packages\psycopg_pool\pool.py", line 184, in connection
+    conn = self.getconn(timeout=timeout)
+  File "C:\Users\Quitto\AppData\Local\Programs\Python\Python314\Lib\site-packages\psycopg_pool\pool.py", line 218, in getconn
+    raise PoolTimeout(
+        f"couldn't get a connection after {timeout:.2f} sec"
+    ) from None
+psycopg_pool.PoolTimeout: couldn't get a connection after 30.00 sec
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\Projects\Java\Ampares-InterCanneloMarques\energy_collector\data_collector.py", line 266, in main
+    verify_schema(pool)
+    ~~~~~~~~~~~~~^^^^^^
+  File "D:\Projects\Java\Ampares-InterCanneloMarques\energy_collector\collector\database.py", line 155, in verify_schema
+    raise PersistenceError(f"Falha ao verificar o schema: {exc}") from exc
+collector.exceptions.PersistenceError: Falha ao verificar o schema: couldn't get a connection after 30.00 sec
+2026-10-15 17:55:38,395 INFO  Socrata: anonimo | rate limit: 4.0 req/s
+2026-10-15 17:56:08,717 ERROR Erro inesperado
+Traceback (most recent call last):
+  File "D:\Projects\Java\Ampares-InterCanneloMarques\energy_collector\collector\database.py", line 152, in verify_schema
+    with pool.connection() as conn:
+         ~~~~~~~~~~~~~~~^^
+  File "C:\Users\Quitto\AppData\Local\Programs\Python\Python314\Lib\contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "C:\Users\Quitto\AppData\Local\Programs\Python\Python314\Lib\site-packages\psycopg_pool\pool.py", line 184, in connection
+    conn = self.getconn(timeout=timeout)
+  File "C:\Users\Quitto\AppData\Local\Programs\Python\Python314\Lib\site-packages\psycopg_pool\pool.py", line 218, in getconn
+    raise PoolTimeout(
+        f"couldn't get a connection after {timeout:.2f} sec"
+    ) from None
+psycopg_pool.PoolTimeout: couldn't get a connection after 30.00 sec
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\Projects\Java\Ampares-InterCanneloMarques\energy_collector\data_collector.py", line 266, in main
+    verify_schema(pool)
+    ~~~~~~~~~~~~~^^^^^^
+  File "D:\Projects\Java\Ampares-InterCanneloMarques\energy_collector\collector\database.py", line 155, in verify_schema
+    raise PersistenceError(f"Falha ao verificar o schema: {exc}") from exc
+collector.exceptions.PersistenceError: Falha ao verificar o schema: couldn't get a connection after 30.00 sec
+2026-10-15 17:57:51,586 INFO  Socrata: anonimo | rate limit: 4.0 req/s
+2026-10-15 17:57:52,427 INFO  ==============================================================================
+2026-10-15 17:57:52,427 INFO  categoria                    dataset     recebidos inseridos   duplic. descartados  status
+2026-10-15 17:57:52,427 INFO  inmetro_pbe_refrigeradores_x inmetro_refrigerators       542         2         1           0  failed
+2026-10-15 17:57:52,427 INFO  ------------------------------------------------------------------------------
+2026-10-15 17:57:52,427 INFO  TOTAL: recebidos=542 inseridos=2 duplicatas=1 descartados=0 | 0.5s
+2026-10-15 17:58:21,707 INFO  Socrata: anonimo | rate limit: 4.0 req/s
+2026-10-15 17:58:22,616 INFO  ==============================================================================
+2026-10-15 17:58:22,616 INFO  categoria                    dataset     recebidos inseridos   duplic. descartados  status
+2026-10-15 17:58:22,616 INFO  inmetro_pbe_refrigeradores_x inmetro_refrigerators       542         0         3           0  ok
+2026-10-15 17:58:22,616 INFO  ------------------------------------------------------------------------------
+2026-10-15 17:58:22,616 INFO  TOTAL: recebidos=542 inseridos=0 duplicatas=3 descartados=0 | 0.6s

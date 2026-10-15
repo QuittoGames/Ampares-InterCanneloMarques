@@ -415,6 +415,7 @@ a {
     gap: var(--space-8);
 }
 
+
 /* ---------- Section heading ---------- */
 .section-heading {
     display: flex;
@@ -478,6 +479,12 @@ a {
     border-color: var(--border-focus);
     box-shadow: var(--shadow-glow);
     outline: none;
+}
+
+.result{
+    display: flex;
+    flex-direction: column;
+    align-content: center;
 }
 
 /* ---------- Products list ---------- */
@@ -976,11 +983,78 @@ select.field-input option {
     vertical-align: middle;
 }
 
+.result_btn{
+    display: flex;
+    align-items: center;
+    justify-self: center;
+    justify-content: center;
+    padding: 1em 2em ;
+    margin-bottom: 1%;
+}
+
+.result_btn button{
+    display: flex;
+    position: relative;
+    overflow: hidden;
+    width: 25%;
+}
+
+.result_btn button:hover{
+    transform: scale(1.01);
+}
+
+.result_btn button::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 50%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.25);
+    transform: skewX(-20deg);
+    transition: left 400ms ease;
+}
+
+.result_btn button:hover::before {
+    left: 150%;
+}
+
+.result_btn button:focus-visible {
+    outline: 3px solid #93c5fd;
+    outline-offset: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .result_btn button {
+        transition: none;
+    }
+}
+
 /* ---------- Result section ---------- */
 .result {
     display: flex;
     flex-direction: column;
     gap: var(--space-5);
+    min-width: 1em;
+    width: 35%;
+    margin-bottom: 15px;
+}
+
+.results-box{
+    display:flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-around;
+    gap: 10px;
+}
+
+/* Destaque âmbar da seção "Produtos em uso" */
+.result--highlight .section-heading__title {
+    color: var(--accent);
+}
+
+.result--highlight .results {
+    border-left: 3px solid var(--accent);
 }
 
 .results {
@@ -1089,4 +1163,88 @@ select.field-input option {
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
     }
+}
+
+/* ---------- Front loader (Uiverse: Circuit Board Loader by Vosoone, MIT) ---------- */
+.front-loader {
+    position: fixed;
+    inset: 0;
+    z-index: 100; /* acima de .app-header (z-index: 10) */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-overlay);
+    opacity: 0;
+    transition: opacity var(--duration) var(--ease-out);
+}
+
+.front-loader[hidden] {
+    display: none;
+}
+
+.front-loader.is-visible {
+    opacity: 1;
+}
+
+.front-loader__box {
+    width: min(560px, 82vw);
+    padding: var(--space-6);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-window);
+}
+
+.front-loader__svg {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.front-loader .trace-bg {
+    stroke: var(--border-strong);
+    stroke-width: 1.8;
+    fill: none;
+}
+
+.front-loader .trace-flow {
+    stroke-width: 1.8;
+    fill: none;
+    stroke-dasharray: 40 400;
+    stroke-dashoffset: 438;
+    filter: drop-shadow(0 0 6px currentColor);
+    animation: frontLoaderFlow 3s cubic-bezier(0.5, 0, 0.9, 1) infinite;
+}
+
+/* Traces em variações da família âmbar do site (tokens + opacidade). */
+.front-loader .front-loader__trace--tone-1 { stroke: var(--accent-soft); color: var(--accent-soft); }
+.front-loader .front-loader__trace--tone-2 { stroke: var(--accent); color: var(--accent); }
+.front-loader .front-loader__trace--tone-3 { stroke: var(--accent-deep); color: var(--accent-deep); }
+.front-loader .front-loader__trace--tone-4 { stroke: var(--accent-soft); color: var(--accent-soft); opacity: 0.6; }
+.front-loader .front-loader__trace--tone-5 { stroke: var(--accent); color: var(--accent); opacity: 0.45; }
+
+@keyframes frontLoaderFlow {
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+/* ---------- Entrada escalonada dos itens de resultado ---------- */
+/* Animam SOMENTE quando #results está no modo results--enter (fluxo do botão
+   Calcular); "Produtos em uso" e mensagens de sessão não animam. */
+@keyframes resultsItemEnter {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.results--enter .results__item,
+.results--enter .results__empty {
+    animation: resultsItemEnter var(--duration-slow) var(--ease-out) both;
+    animation-delay: var(--enter-delay, 0ms);
 }

@@ -63,6 +63,16 @@ check('formatVoltage({kind:unknown})', Units.formatVoltage({ kind: 'unknown' }),
 check('formatVoltage(null)', Units.formatVoltage(null), '');
 check("formatVoltage('127 V') [string não numérica]", Units.formatVoltage('127 V'), '');
 
+// --- formatVoltages (lista de tensões declaradas do produto) ----------------
+// Contrato real: backend envia JSON array via List<Integer> ([127, 220]).
+check("formatVoltages(['127','220']) [strings numéricas]", Units.formatVoltages(['127', '220']), '127/220 V');
+check('formatVoltages([127, 220]) [array ordena e deduplica]', Units.formatVoltages([220, 127, 220]), '127/220 V');
+check('formatVoltages([127]) [monovolt único]', Units.formatVoltages([127]), '127 V');
+check("formatVoltages(['127.00']) [decimal vira inteiro]", Units.formatVoltages(['127.00']), '127 V');
+check('formatVoltages([]) [vazio omite]', Units.formatVoltages([]), '');
+check('formatVoltages(null) [ausente omite]', Units.formatVoltages(null), '');
+check("formatVoltages(['n/a']) [não numérico omite]", Units.formatVoltages(['n/a']), '');
+
 // --- formatEnergyKwh --------------------------------------------------------
 check(
     "formatEnergyKwh('1,5', 'dia') [vírgula pt-BR]",

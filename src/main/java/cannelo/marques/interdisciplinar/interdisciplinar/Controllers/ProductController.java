@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import cannelo.marques.interdisciplinar.interdisciplinar.Models.Product;
 import cannelo.marques.interdisciplinar.interdisciplinar.Repository.ProductRepository;
+import cannelo.marques.interdisciplinar.interdisciplinar.Services.User.ProductVoltageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
@@ -20,9 +21,12 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public class ProductController {
 
     private final ProductRepository productRepository;
+    private final ProductVoltageService productVoltageService;
 
-    public ProductController(ProductRepository productRepository) {
+    public ProductController(ProductRepository productRepository,
+            ProductVoltageService productVoltageService) {
         this.productRepository = productRepository;
+        this.productVoltageService = productVoltageService;
     }
 
     @Operation(
@@ -46,6 +50,8 @@ public class ProductController {
         } else {
             products = productRepository.findAll();
         }
+
+        productVoltageService.decorate(products);
 
         return ResponseEntity.ok(products);
     }

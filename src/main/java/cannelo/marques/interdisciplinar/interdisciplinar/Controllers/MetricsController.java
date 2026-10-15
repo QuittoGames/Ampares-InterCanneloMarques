@@ -16,10 +16,12 @@ import cannelo.marques.interdisciplinar.interdisciplinar.DTO.MetricsByUserDTO;
 import cannelo.marques.interdisciplinar.interdisciplinar.DTO.MetricsStandbyByProductDTO;
 import cannelo.marques.interdisciplinar.interdisciplinar.DTO.SearchResponseDTO;
 import cannelo.marques.interdisciplinar.interdisciplinar.Models.Product;
+import cannelo.marques.interdisciplinar.interdisciplinar.Models.RegistryUserProduct;
 import cannelo.marques.interdisciplinar.interdisciplinar.Models.User;
 import cannelo.marques.interdisciplinar.interdisciplinar.Repository.ProductRepository;
 import cannelo.marques.interdisciplinar.interdisciplinar.Repository.UserRepository;
 import cannelo.marques.interdisciplinar.interdisciplinar.Services.User.ProductService;
+import cannelo.marques.interdisciplinar.interdisciplinar.Services.User.ProductVoltageService;
 import cannelo.marques.interdisciplinar.interdisciplinar.exceptions.UserNotFoundException;
 import cannelo.marques.interdisciplinar.interdisciplinar.interfaces.MetricsService;
 import cannelo.marques.interdisciplinar.interdisciplinar.exceptions.ProductNotFoundException;
@@ -44,14 +46,17 @@ public class MetricsController {
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
     private final ProductService productService;
+    private final ProductVoltageService productVoltageService;
 
     public MetricsController(MetricsService<User, BigDecimal> metricsService, UserRepository userRepository,
-            ProductRepository productRepository,ProductService productService,UserService userService) {
+            ProductRepository productRepository,ProductService productService,UserService userService,
+            ProductVoltageService productVoltageService) {
         this.metricsService = metricsService;
         this.userRepository = userRepository;
         this.productRepository = productRepository;
         this.productService = productService;
         this.userService = userService;
+        this.productVoltageService = productVoltageService;
     }
 
     @PostMapping("/users/calculate")
@@ -60,7 +65,13 @@ public class MetricsController {
                 .orElseThrow(() -> new UserNotFoundException("User not found: " + dto.userId()));
 
         return metricsService.calculate(user)
-                .map(ResponseEntity::ok)
+                .map(result -> {
+                    productVoltageService.decorate(
+                            result.productsList().stream()
+                                    .map(RegistryUserProduct::getProduct)
+                                    .toList());
+                    return ResponseEntity.ok(result);
+                })
                 .orElse(ResponseEntity.notFound().build());
     }
 

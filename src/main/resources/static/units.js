@@ -152,6 +152,27 @@
     }
 
     /**
+     * Lista de tensões declaradas (ex.: [127, 220]) → '127/220 V';
+     * [127] → '127 V'. Inteiros ordenados e sem duplicata; conversão e
+     * inferência proibidas (mesmas regras de formatVoltage). Ausente/vazia
+     * → '' (omite).
+     */
+    function formatVoltages(values) {
+        if (!Array.isArray(values) || values.length === 0) {
+            return '';
+        }
+
+        const integers = [...new Set(
+            values
+                .map(parseNumber)
+                .filter((parsed) => parsed !== null)
+                .map((parsed) => Math.round(parsed)),
+        )].sort((a, b) => a - b);
+
+        return integers.length > 0 ? `${integers.join('/')} V` : '';
+    }
+
+    /**
      * Energia em kWh com 3 casas decimais (pt-BR):
      * `formatEnergyKwh(1.032, 'dia')` → '1,032 kWh/dia';
      * `formatEnergyKwh(value, 'ano')` → '… kWh/ano'. Ausente → ''.
@@ -198,6 +219,7 @@
         formatNumberPtBR,
         formatPowerW,
         formatVoltage,
+        formatVoltages,
         formatEnergyKwh,
         formatHoursPerDay,
         formatBrl,

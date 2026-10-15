@@ -5,12 +5,16 @@ const state = {
     lastProductId: '',
 };
 
+/** Espera mínima (ms) para a animação do loader ser perceptível. */
+const FRONT_MIN_WAIT_MS = 5000;
+
 const loginSection = document.getElementById('login-section');
 const registrySection = document.getElementById('registry-section');
 const loginForm = document.getElementById('login-form');
 const registryForm = document.getElementById('registry-form');
 const productSelect = document.getElementById('product-select');
 const userProducts = document.getElementById('user-products');
+// Pode ser null: nenhum HTML atual declara #manual-product-id (campo legado).
 const manualProductIdInput = document.getElementById('manual-product-id');
 const currentUserId = document.getElementById('current-user-id');
 const loginMessage = document.getElementById('login-message');
@@ -21,6 +25,7 @@ const logoutButton = document.getElementById('logout-button');
 const userIdInput = document.getElementById('user-id');
 const idRow = document.getElementById('user-id-row');
 const authIdToggle = document.getElementById('auth-id-toggle');
+const frontLoader = document.getElementById('front-loader');
 
 loginForm.addEventListener('submit', handleLogin);
 registryForm.addEventListener('submit', handleRegistrySubmit);
@@ -45,6 +50,10 @@ if (state.userId) {
             resetSessionState();
             setMessage(loginMessage, 'Sessão expirada. Toque em Começar agora.', 'error');
         });
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 async function handleLogin(event) {
@@ -235,18 +244,59 @@ async function handleRegistrySubmit(event) {
         });
 
         state.lastProductId = productId;
-        manualProductIdInput.value = '';
+
+        if (manualProductIdInput) {
+            manualProductIdInput.value = '';
+        }
+
         await loadUserProducts();
-        setMessage(registryMessage, 'Produto registrado. Calculando resultado...', 'success');
-        await calculateResults();
+        setMessage(registryMessage, 'Produto registrado. Toque em Calcular resultado.', 'success');
     } catch (error) {
         setMessage(registryMessage, `Falha ao registrar produto: ${error.message}`, 'error');
     }
 }
 
+/** Espera mínima (ms) para a animação do loader ser perceptível. */
+function delay(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function showFrontLoader() {
+    frontLoader.hidden = false;
+    // Dois frames: garante que o browser registre opacity:0 antes da classe de transição.
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => frontLoader.classList.add('is-visible'));
+    });
+}
+
+function hideFrontLoader() {
+    frontLoader.classList.remove('is-visible');
+    // some de fato após a transição de opacity (guarda contra show esquecido).
+    setTimeout(() => {
+        if (!frontLoader.classList.contains('is-visible')) {
+            frontLoader.hidden = true;
+        }
+    }, 250);
+}
+
+/**
+ * Executa a tarefa de backend JUNTO com um tempo mínimo de espera, para que a
+ * animação do loader seja visível. Semearro: o loader SEMPRE some (finally).
+ */
+async function createTimerForFront(fetchTask, minMs = FRONT_MIN_WAIT_MS) {
+    showFrontLoader();
+    try {
+        const [data] = await Promise.all([fetchTask(), delay(minMs)]);
+        return data;
+    } finally {
+        hideFrontLoader();
+    }
+}
+
 /**
  * Calcula o resultado com UMA chamada ao endpoint geral
- * POST /api/metrics/users/calculate (ResultDTO).
+ * POST /api/metrics/users/calculate (ResultDTO). Exibe o loader de carregamento
+ * durante a chamada (mínimo FRONT_MIN_WAIT_MS, escondido sempre no finally).
  *
  * Unidades reais (ConsumeMetricsService#calculate): avgDailyKwh = média de
  * consumo diário por associação válida (kWh/dia); avgUseInYear = média de consumo
@@ -259,13 +309,17 @@ async function calculateResults() {
         return;
     }
 
+    // Animação de entrada vale só para o fluxo do botão Calcular.
+    results.classList.add('results--enter');
     showTextResult('Calculando...');
 
     try {
-        const result = await request('/api/metrics/users/calculate', {
-            method: 'POST',
-            body: { userId: Number(state.userId) },
-        });
+        const result = await createTimerForFront(() =>
+            request('/api/metrics/users/calculate', {
+                method: 'POST',
+                body: { userId: Number(state.userId) },
+            })
+        );
         renderCalculationResult(result);
     } catch (error) {
         if (error.status === 404) {
@@ -284,29 +338,28 @@ function renderCalculationResult(result) {
     const avgAnnualKwh = Units.formatEnergyKwh(result.avgUseInYear, 'ano');
 
     // Linha só entra quando há valor formatado (evita label órfão com '').
+    let rowIndex = 0;
+
     if (avgDailyKwh) {
-        list.appendChild(metricRow('Consumo médio diário', avgDailyKwh));
+        list.appendChild(metricRow('Consumo médio diário', avgDailyKwh, rowIndex++));
     }
 
     if (avgAnnualKwh) {
-        list.appendChild(metricRow('Consumo médio anual', avgAnnualKwh));
+        list.appendChild(metricRow('Consumo médio anual', avgAnnualKwh, rowIndex++));
     }
 
     if (result.dailyCost != null && result.annualCost != null) {
-        list.appendChild(metricRow('Gasto por dia', Units.formatBrl(result.dailyCost)));
-        list.appendChild(metricRow('Gasto por ano', Units.formatBrl(result.annualCost)));
+        list.appendChild(metricRow('Gasto por dia', Units.formatBrl(result.dailyCost), rowIndex++));
+        list.appendChild(metricRow('Gasto por ano', Units.formatBrl(result.annualCost), rowIndex++));
     }
-
-    (result.productsList || []).forEach((registry) => {
-        list.appendChild(metricRow('Produto', formatRegistryDetails(registry)));
-    });
 
     results.replaceChildren(list);
 }
 
-function metricRow(label, value) {
+function metricRow(label, value, index = 0) {
     const item = document.createElement('li');
     item.className = 'results__item';
+    item.style.setProperty('--enter-delay', `${index * 60}ms`);
 
     const labelEl = document.createElement('span');
     labelEl.className = 'results__label';
@@ -376,9 +429,12 @@ function extractIdFromSelfLink(resource) {
 
 function formatProduct(product) {
     const parts = [product.name, product.brand, product.model].filter(Boolean).join(' - ');
-    const power = Units.formatPowerW(product.avgPowerW);
+    const specs = [
+        Units.formatPowerW(product.avgPowerW),
+        Units.formatVoltages(product.declaredVoltages),
+    ].filter(Boolean).join(' · ');
 
-    return `${parts || product.id}${power ? ` (${power})` : ''}`;
+    return `${parts || product.id}${specs ? ` (${specs})` : ''}`;
 }
 
 function replaceOptions(select, options) {
@@ -393,7 +449,8 @@ function replaceOptions(select, options) {
 }
 
 function getSelectedProductId(formData) {
-    return String(formData.get('manualProductId')).trim() || String(formData.get('productId')).trim();
+    // ?? '' evita String(null) → "null" quando o campo não existe no form.
+    return String(formData.get('manualProductId') ?? '').trim() || String(formData.get('productId') ?? '').trim();
 }
 
 function numberFromForm(formData, field) {
@@ -436,12 +493,15 @@ function resetSessionState() {
     localStorage.removeItem('amparesUserId');
     loginSection.hidden = false;
     registrySection.hidden = true;
+    // Sessão encerrada: sai do modo animado do fluxo de cálculo.
+    results.classList.remove('results--enter');
     showTextResult('Nenhum resultado calculado ainda.');
 }
 
 function showTextResult(text) {
     const paragraph = document.createElement('p');
     paragraph.className = 'results__empty';
+    paragraph.style.setProperty('--enter-delay', '0ms');
     paragraph.textContent = text;
     results.replaceChildren(paragraph);
 }

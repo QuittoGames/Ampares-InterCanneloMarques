@@ -23,11 +23,13 @@ import cannelo.marques.interdisciplinar.interdisciplinar.DTO.MetricsStandbyByPro
 import cannelo.marques.interdisciplinar.interdisciplinar.DTO.ResultDTO;
 import cannelo.marques.interdisciplinar.interdisciplinar.DTO.SearchResponseDTO;
 import cannelo.marques.interdisciplinar.interdisciplinar.Models.Product;
+import cannelo.marques.interdisciplinar.interdisciplinar.Models.RegistryUserProduct;
 import cannelo.marques.interdisciplinar.interdisciplinar.Models.User;
 import cannelo.marques.interdisciplinar.interdisciplinar.interfaces.MetricsService;
 import cannelo.marques.interdisciplinar.interdisciplinar.Repository.ProductRepository;
 import cannelo.marques.interdisciplinar.interdisciplinar.Repository.UserRepository;
 import cannelo.marques.interdisciplinar.interdisciplinar.Services.User.ProductService;
+import cannelo.marques.interdisciplinar.interdisciplinar.Services.User.ProductVoltageService;
 import cannelo.marques.interdisciplinar.interdisciplinar.Services.User.UserService;
 import cannelo.marques.interdisciplinar.interdisciplinar.exceptions.ProductNotFoundException;
 import cannelo.marques.interdisciplinar.interdisciplinar.exceptions.UserNotFoundException;
@@ -45,6 +47,8 @@ class MetricsControllerTest {
     private ProductService productService;
     @Mock
     private UserService userService;
+    @Mock
+    private ProductVoltageService productVoltageService;
 
     private MetricsController controller;
     private User user;
@@ -52,7 +56,8 @@ class MetricsControllerTest {
 
     @BeforeEach
     void setUp() {
-        controller = new MetricsController(metricsService, userRepository, productRepository, productService, userService);
+        controller = new MetricsController(metricsService, userRepository, productRepository, productService,
+                userService, productVoltageService);
         user = new User(11);
         product = new Product(UUID.randomUUID());
     }
@@ -216,9 +221,11 @@ class MetricsControllerTest {
 
     @Test
     void shouldReturnGeneralResultFromCalculate() {
+        RegistryUserProduct registry = new RegistryUserProduct(user, 1,
+                new BigDecimal("4"), new BigDecimal("20"), product);
         ResultDTO result = new ResultDTO(11, "Test User", new BigDecimal("4"), new BigDecimal("12.50"),
                 new BigDecimal("3"), new BigDecimal("1095"),
-                new BigDecimal("3.18"), new BigDecimal("1161.90"), List.of());
+                new BigDecimal("3.18"), new BigDecimal("1161.90"), List.of(registry));
         when(userRepository.findById(11)).thenReturn(Optional.of(user));
         when(metricsService.calculate(user)).thenReturn(Optional.of(result));
 
@@ -228,6 +235,8 @@ class MetricsControllerTest {
         assertEquals(result, response.getBody());
         verify(userRepository).findById(11);
         verify(metricsService).calculate(user);
+        // wiring: o decorate recebe os Products extraídos dos registros (productsList → getProduct)
+        verify(productVoltageService).decorate(List.of(product));
     }
 
     @Test

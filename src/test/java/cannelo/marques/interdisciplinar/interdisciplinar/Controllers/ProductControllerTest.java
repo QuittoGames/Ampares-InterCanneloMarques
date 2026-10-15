@@ -20,6 +20,7 @@ import org.springframework.data.domain.Pageable;
 
 import cannelo.marques.interdisciplinar.interdisciplinar.Models.Product;
 import cannelo.marques.interdisciplinar.interdisciplinar.Repository.ProductRepository;
+import cannelo.marques.interdisciplinar.interdisciplinar.Services.User.ProductVoltageService;
 
 @ExtendWith(MockitoExtension.class)
 class ProductControllerTest {
@@ -27,12 +28,15 @@ class ProductControllerTest {
     @Mock
     private ProductRepository productRepository;
 
+    @Mock
+    private ProductVoltageService productVoltageService;
+
     private ProductController controller;
     private List<Product> products;
 
     @BeforeEach
     void setUp() {
-        controller = new ProductController(productRepository);
+        controller = new ProductController(productRepository, productVoltageService);
         products = List.of(
                 new Product(UUID.randomUUID()),
                 new Product(UUID.randomUUID()));
@@ -47,6 +51,7 @@ class ProductControllerTest {
         assertEquals(products, response.getBody());
         verify(productRepository).searchByTerm("television");
         verify(productRepository, never()).findAll(any(Pageable.class));
+        verify(productVoltageService).decorate(products);
     }
 
     @Test
@@ -60,6 +65,7 @@ class ProductControllerTest {
         assertEquals(products, response.getBody());
         verify(productRepository).findAll(argThat((Pageable pageable) ->
                 pageable.getPageNumber() == 0 && pageable.getPageSize() == 1000));
+        verify(productVoltageService).decorate(products);
     }
 
     @Test
@@ -83,6 +89,7 @@ class ProductControllerTest {
 
         assertEquals(products, response.getBody());
         verify(productRepository).findAll();
+        verify(productVoltageService).decorate(products);
     }
 
     @Test

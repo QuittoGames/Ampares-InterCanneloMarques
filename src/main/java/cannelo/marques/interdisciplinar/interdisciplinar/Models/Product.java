@@ -1,6 +1,7 @@
 package cannelo.marques.interdisciplinar.interdisciplinar.Models;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -8,6 +9,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Transient;
 
 @Entity
 public class Product {
@@ -36,6 +38,18 @@ public class Product {
      */
     @Column(name = "avg_idle_energy_for_hour")
     private BigDecimal avgIdleEnergyForHour;
+
+    /**
+     * Tensões distintas declaradas nas observações de fonte (V) — ex.:
+     * [127, 220] quando o PBE declara modelos monovolt nas DUAS tensões
+     * para o mesmo produto canônico. Campo de EXIBIÇÃO populado sob
+     * demanda pelo {@code ProductVoltageService} ({@code @Transient},
+     * não persistido — as tensões continuam morando em
+     * {@code product_source_observation}). Lista vazia = nenhuma tensão
+     * declarada. NUNCA inferir tensão ausente (units.js/collector).
+     */
+    @Transient
+    private List<Integer> declaredVoltages;
 
     public Product() {
     }
@@ -122,5 +136,13 @@ public class Product {
 
     public void setAvgIdleEnergyForHour(BigDecimal avgIdleEnergyForHour) {
         this.avgIdleEnergyForHour = avgIdleEnergyForHour;
+    }
+
+    public List<Integer> getDeclaredVoltages() {
+        return declaredVoltages;
+    }
+
+    public void setDeclaredVoltages(List<Integer> declaredVoltages) {
+        this.declaredVoltages = declaredVoltages;
     }
 }

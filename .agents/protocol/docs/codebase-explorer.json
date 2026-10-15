@@ -1,19 +1,19 @@
 {
   "name": "codebase report",
-  "updated_at": "2026-10-15T17:20:45.350055+00:00",
+  "updated_at": "2026-10-15T22:08:23.681570+00:00",
   "git": {
     "branch": "main",
-    "commit": "41b9a8460ed286da9af438cec785b742dc015d6b"
+    "commit": "725d51ca5fa2b6cdf668406881835927f5efef0d"
   },
   "scope": {
     "type": "FACT",
-    "statement": "ATUALIZACAO PARCIAL (UPDATE) em 15/10/2026 sobre o relatorio base de 13/10/2026 (cache STALE: HEAD avancou de a1d9415 para 41b9a84). O commit 41b9a84 (15/10 13:40) commitou a integracao final de standby que estava SUJA na worktree em 13/10 (create.sql, Product.java, ConsumeMetricsService.java, StandbyMetricsService.java, ConsumeMetricsServiceTest.java + 2 testes novos) — conteudo dos arquivos de standby NAO divergiu do ja descrito no relatorio base. Worktree SUJA apenas com mudanca de bean validation NAO commitada: MetricsController.java (@NotBlank->@Valid em 4 endpoints) e MetricsByUserDTO.java (@Positive userId). Suite Java re-verificada: ./mvnw clean test => 193 testes verdes (15/10 ~14:10). Frontend static/ inalterado desde a1d9415 e ja coberto pelo relatorio base. Paths Java abreviados: 'src/main/java/cannelo/marques/interdisciplinar/interdisciplinar/' => '.../'.",
+    "statement": "ATUALIZACAO PARCIAL (UPDATE) em 15/10/2026 ~18:00 sobre o relatorio das 17:20 (cache STALE: HEAD avancou de 41b9a84 para 725d51c 'Fix' 17:09 + worktree suja). ESCOPO DESTA ATUALIZACAO: FRONTEND (src/main/resources/static/). O commit 725d51c commitou: (a) a bean validation que estava suja (MetricsController @Valid em 4 endpoints + MetricsByUserDTO @Positive userId — open item anterior RESOLVIDO); (b) units.js como modulo novo (window.Units) com app.js migrado (4 pontos de exibicao / 7 chamadas); (c) docs/frontend_units.md, docs/setup_postgres_docker.md, scripts/unit_tests/units_smoke_test.js, scripts/setup_postgres_docker.sh, .agents/specs/spec-docker-postgres-frontend-units.md. Backend Java: identico ao 41b9a84 salvo a bean validation citada (11+4 linhas). Worktree SUJA (nao commitada) contem o REDesign de LAYOUT do frontend: reestruturacao de index.html (70 linhas), ajustes em app.js (+17) e units.js (+26), style.css +62 (.result_btn/.results-box/.result width 35%), e NOVOS untracked test.html (variante mock, 196 linhas) + mock-api.js (153 linhas). Suite Java nao re-executada nesta exploracao (backend inalterado). Paths Java abreviados: 'src/main/java/cannelo/marques/interdisciplinar/interdisciplinar/' => '.../'.",
     "confidence": "HIGH"
   },
   "language": [
     "Java 21 (Spring Boot 4.1.1, Maven ./mvnw, Hibernate/JPA, BigDecimal)",
     "Python 3.14+ (energy_collector: psycopg3 + psycopg_pool, requests, pytest)",
-    "Vanilla JS + CSS (src/main/resources/static/: app.js, index.html, style.css; sem framework)",
+    "Vanilla JS + CSS (src/main/resources/static/: index.html PRODUCAO + test.html MOCK, app.js, units.js (window.Units), mock-api.js (test-only), style.css; sem framework, sem bundler/ES modules)",
     "SQL (PostgreSQL; migrations/ canonicas; SEM Flyway)"
   ],
   "architecture": [
@@ -42,11 +42,11 @@
     },
     {
       "type": "FACT",
-      "statement": "Nao existe @ControllerAdvice nem @ExceptionHandler: excecoes de dominio (UserNotFound/ProductNotFound/InvalidRegistry/InputValidation/TariffUnavailable/IllegalStateException de duplicidade) viram 500 padrao do Spring. O frontend le data.message quando presente (app.js:338-347).",
+      "statement": "Nao existe @ControllerAdvice nem @ExceptionHandler: excecoes de dominio (UserNotFound/ProductNotFound/InvalidRegistry/InputValidation/TariffUnavailable/IllegalStateException de duplicidade) viram 500 padrao do Spring. O frontend le data.message quando presente (app.js:347-355).",
       "evidence": [
         "grep 'ControllerAdvice|ExceptionHandler' src/main/java -> no matches",
         ".../Services/Registry/RegistryUserService.java:85-92",
-        "src/main/resources/static/app.js:338-347"
+        "src/main/resources/static/app.js:347-355"
       ],
       "confidence": "HIGH"
     },
@@ -216,11 +216,33 @@
           "type": "config"
         },
         "static": {
+          "note": "index.html = PRODUCAO (servido pelo Spring em /); test.html = variante de TESTE/MOCK (aberta via Live Server, fora do fluxo de producao)",
           "type": "frontend",
           "children": {
-            "index.html": {},
-            "app.js": {},
-            "style.css": {},
+            "index.html": {
+              "type": "production-entry",
+              "note": "182 linhas; scripts /units.js + /app.js SEM defer (179-180); href /style.css (11)"
+            },
+            "test.html": {
+              "type": "test-entry-mock",
+              "note": "NAO COMMITADO (untracked); banner mock (16-19), hr (157), .result_btn (159-164), .results-box (166-188); scripts relativos COM defer incl. mock-api.js PRIMEIRO (191-194)"
+            },
+            "app.js": {
+              "type": "ui-logic",
+              "note": "459 linhas; todo o fluxo de UI"
+            },
+            "units.js": {
+              "type": "units-module",
+              "note": "window.Units; commitado em 725d51c; stub vazio createTimerForFront() 215-217 na worktree"
+            },
+            "mock-api.js": {
+              "type": "test-only-fetch-interceptor",
+              "note": "NAO COMMITADO (untracked); intercepta fetch do test.html; ?api=real desliga"
+            },
+            "style.css": {
+              "type": "design-system",
+              "note": "1154 linhas; tokens em :root 9-77"
+            },
             "assets/": {
               "type": "static-assets",
               "note": "icons.png (icone do sistema)"
@@ -358,6 +380,12 @@
           "note": "TODO do redesign do frontend (fase historica)"
         },
         "code-review-analysis.md": {},
+        "frontend_units.md": {
+          "note": "doc formal do modulo units.js (725d51c): 6 funcoes Units, 4 pontos de exibicao/7 chamadas no app.js, guarda Node para smoke test"
+        },
+        "setup_postgres_docker.md": {
+          "note": "setup do Postgres em Docker (725d51c)"
+        },
         "data_normalizate.md": {}
       }
     },
@@ -368,7 +396,7 @@
           "note": "decision_001..008.json"
         },
         "specs/": {
-          "note": "spec-ampares-system-specification.md, spec-registry-refactor-unified-consumption-engine.md, spec-standby-metrics-service.md"
+          "note": "spec-ampares-system-specification.md, spec-registry-refactor-unified-consumption-engine.md, spec-standby-metrics-service.md, spec-docker-postgres-frontend-units.md (novo em 725d51c, 440 linhas)"
         },
         "protocol/docs/codebase-explorer.json": {
           "note": "este relatorio"
@@ -399,10 +427,24 @@
         "001-ampares-system-spec/": {}
       }
     },
+    "scripts/": {
+      "type": "scripts",
+      "children": {
+        "unit_tests/units_smoke_test.js": {
+          "type": "smoke-test",
+          "note": "node puro sem dependencias; carrega units.js via guard module.exports (novo em 725d51c; NAO EXECUTADO nesta exploracao)"
+        },
+        "setup_postgres_docker.sh": {
+          "note": "setup postgres docker (novo em 725d51c)"
+        }
+      }
+    },
     "backups/": {
       "type": "db-backups",
       "children": {
-        "neondb_backup_20261013_162001.dump": {}
+        "neon_backup_20261015_174603.dump": {
+          "note": "dump de 15/10 17:46; substitui neondb_backup_20261013_162001.dump (removido)"
+        }
       }
     }
   },
@@ -426,10 +468,12 @@
     },
     {
       "type": "FACT",
-      "value": "Frontend: src/main/resources/static/index.html + app.js (login one-tap, registro, resultado com UMA chamada POST /api/metrics/users/calculate)",
+      "value": "Frontend PRODUCAO: static/index.html + app.js (login one-tap, registro, resultado com UMA chamada POST /api/metrics/users/calculate; units.js carregado antes como window.Units). Variante de TESTE: static/test.html + mock-api.js (fetch interceptado, dados em memoria; NAO commitado, untracked)",
       "evidence": [
-        "src/main/resources/static/app.js:53-89,262-301",
-        "src/main/resources/static/index.html:37-55"
+        "src/main/resources/static/app.js:262-282,208-250",
+        "src/main/resources/static/index.html:179-180",
+        "src/main/resources/static/test.html:191-194",
+        "src/main/resources/static/mock-api.js:1-153"
       ]
     },
     {
@@ -599,7 +643,7 @@
     {
       "module": "Controllers (web layer)",
       "path": "src/main/java/.../Controllers/",
-      "responsibility": "AuthController (login/logout com @Valid LoginDTO), MetricsController (/api/metrics: calculate + 4 legados + search; sem total-energy/by-category; bean validation: @Valid MetricsByUserDTO @Positive userId em 4 endpoints — mudanca nao commitada 15/10), ProductController (GET /products com search/size), RegistryUserProductController (POST /registryUserProducts com ProductForRegistry @Valid; GET /user/{userId}). Sem @ControllerAdvice.",
+      "responsibility": "AuthController (login/logout com @Valid LoginDTO), MetricsController (/api/metrics: calculate + 4 legados + search; sem total-energy/by-category; bean validation: @Valid MetricsByUserDTO @Positive userId em 4 endpoints — commitada em 725d51c 15/10), ProductController (GET /products com search/size), RegistryUserProductController (POST /registryUserProducts com ProductForRegistry @Valid; GET /user/{userId}). Sem @ControllerAdvice.",
       "depends_on": [
         "Services",
         "Repositories",
@@ -619,8 +663,8 @@
     },
     {
       "module": "frontend (static)",
-      "path": "src/main/resources/static/app.js",
-      "responsibility": "Login one-tap (gera id aleatorio 7 digitos via crypto.getRandomValues quando a area manual esta oculta; area manual revelada pelo logo), revalida sessao salva via POST /auth/login, lista /products?size=1000, registra em /registryUserProducts (hoursStandby opcional), calcula com UMA chamada a /api/metrics/users/calculate e renderiza kWh/dia, kWh/ano e R$/dia R$/ano (Intl pt-BR).",
+      "path": "src/main/resources/static/ (index.html + app.js + units.js; variante mock test.html + mock-api.js)",
+      "responsibility": "Login one-tap (gera id aleatorio 7 digitos via crypto.getRandomValues quando a area manual esta oculta; area manual revelada pelo logo), revalida sessao salva via POST /auth/login, lista /products?size=1000, registra em /registryUserProducts (hoursStandby opcional), calcula com UMA chamada a /api/metrics/users/calculate (calculateResults 262-282 mostra 'Calculando...' via showTextResult antes do POST) e renderiza via renderCalculationResult (284-310: ul.results__list + metricRow) usando Units.formatEnergyKwh/formatBrl. handleRegistrySubmit (208-250) AWAIT calculateResults() ao final (246).",
       "depends_on": [
         "API REST"
       ],
@@ -628,8 +672,39 @@
       "type": "FACT",
       "confidence": "HIGH",
       "evidence": [
-        "src/main/resources/static/app.js:1-449",
-        "src/main/resources/static/index.html:18-193"
+        "src/main/resources/static/app.js:1-459",
+        "src/main/resources/static/index.html:1-182",
+        "src/main/resources/static/test.html:1-196"
+      ]
+    },
+    {
+      "module": "units.js (window.Units)",
+      "path": "src/main/resources/static/units.js",
+      "responsibility": "Modulo IIFE unico de formatacao de unidades do frontend: parseNumber (pt-BR tolerante: ponto, virgula, milhar+decimal), formatNumberPtBR, formatPowerW, formatVoltageInteger, formatVoltage (monovolt/bivolt/range/unknown — NUNCA converte tensao, NUNCA infere), formatEnergyKwh(value,'dia'|'ano'), formatHoursPerDay (zero declarado exibido; ausencia omite), formatBrl (Intl pt-BR BRL). Object.freeze + global.Units (window); guard module.exports habilita smoke test Node (scripts/unit_tests/units_smoke_test.js). Nota: contem stub VAZIO createTimerForFront() (215-217, worktree suja).",
+      "depends_on": [],
+      "used_by": [
+        "app.js (7 chamadas: formatProduct x1, formatRegistryDetails x2, renderCalculationResult x4)"
+      ],
+      "type": "FACT",
+      "confidence": "HIGH",
+      "evidence": [
+        "src/main/resources/static/units.js:16-217",
+        "docs/frontend_units.md"
+      ]
+    },
+    {
+      "module": "mock-api.js (test-only)",
+      "path": "src/main/resources/static/mock-api.js",
+      "responsibility": "Backend falso para test.html via Live Server: no load, se ?api=real -> return (fetch passa adiante); senao substitui global.fetch por mockFetch (latencia 150ms) e roteia POST /auth/login, POST /auth/logout (limpa sessao), GET /products (6 produtos fixos mock-000N), GET /registryUserProducts/user/{id} e POST /registryUserProducts (registros em memoria), POST /api/metrics/users/calculate (ResultDTO simulado: kWh = q*P*h/1000 ativo + standby; custo = kWh x tarifa 0.95; round 3/2 casas; vazio -> 404). Rota desconhecida -> 404. NAO faz parte da producao (untracked).",
+      "depends_on": [],
+      "used_by": [
+        "test.html (carregado PRIMEIRO, antes de units.js/app.js — ordem importa p/ interceptar fetch)"
+      ],
+      "type": "FACT",
+      "confidence": "HIGH",
+      "evidence": [
+        "src/main/resources/static/mock-api.js:21-153",
+        "src/main/resources/static/test.html:191-194"
       ]
     },
     {
@@ -792,7 +867,7 @@
       "type": "FACT",
       "confidence": "HIGH",
       "evidence": [
-        "src/main/resources/static/app.js:212-250",
+        "src/main/resources/static/app.js:208-250",
         ".../Controllers/RegistryUserProductController.java:74-92",
         ".../Services/Registry/RegistryUserService.java:64-127",
         ".../Services/Registry/ProductForRegistryConverter.java:42-56"
@@ -807,12 +882,12 @@
         "Streams: avgDailyKwh/avgUseInYear (escala 6 HALF_UP), totalDailyKwh/totalAnnualKwh (soma natural; E_active+E_standby por registro; anual = diario x365 pelo motor)",
         "Tarifa unica: TariffService.getReferenceTariff(LocalDate.now()) -> R$/kWh; custos = ConsumptionCalculator.cost (2 casas HALF_UP); TariffUnavailableException propaga",
         "ResultDTO (9 componentes: id, name, avgDailyKwh, avgUseInYear, totalDailyKwh, totalAnnualKwh, dailyCost, annualCost, productsList)",
-        "app.js renderCalculationResult: rotulos kWh/dia, kWh/ano, R$/dia, R$/ano (Intl pt-BR)"
+        "app.js renderCalculationResult (284-310): Units.formatEnergyKwh x2 + Units.formatBrl x2 -> rotulos kWh/dia, kWh/ano, R$/dia, R$/ano (Intl pt-BR)"
       ],
       "type": "FACT",
       "confidence": "HIGH",
       "evidence": [
-        "src/main/resources/static/app.js:252-301",
+        "src/main/resources/static/app.js:262-310",
         ".../Controllers/MetricsController.java:57-65",
         ".../Services/Metrics/ConsumeMetricsService.java:296-351",
         ".../DTO/ResultDTO.java:46-68"
@@ -854,6 +929,143 @@
       ]
     }
   ],
+  "frontend_map": {
+    "note": "MAPA FRONTEND — exploracao TASK CONTEXT FRONTEND de 15/10/2026 ~18:00. Line numbers referem-se ao estado ATUAL da worktree (inclui mudancas NAO commitadas). Os codigos de diferenca a-f sao reutilizaveis como checklist de implementacao.",
+    "dom_index_vs_test": {
+      "type": "FACT",
+      "confidence": "HIGH",
+      "differences": [
+        {
+          "id": "a-banner-mock",
+          "statement": "test.html declara banner de ambiente de teste <p class='message message--success' style='margin: 8px 16px;'> (test.html:16-19) que NAO existe no index.html — NAO deve ser copiado para o index de producao.",
+          "evidence": [
+            "test.html:16-19"
+          ]
+        },
+        {
+          "id": "b-calculate-button",
+          "statement": "test.html move #calculate-button para FORA de section.result: no index o botao esta dentro da section de resultado (index.html:168-171, antes do div#results 173-175); no test ele vive em <div class='result_btn'> (159-164) posicionado APOS <hr style='width: 80%;'> (157), entre </main> e as sections de resultado.",
+          "evidence": [
+            "index.html:162-176",
+            "test.html:157-164"
+          ]
+        },
+        {
+          "id": "c-results-box",
+          "statement": "test.html envolve as DUAS section.result (user-products 167-175 + resultado 178-187) em <div class='results-box'> (166-188); no index as duas sections (151-159 e 162-176) sao filhas diretas de #registry-section, sem wrapper, logo apos </main> (149).",
+          "evidence": [
+            "index.html:149-177",
+            "test.html:155-189"
+          ]
+        },
+        {
+          "id": "d-scripts",
+          "statement": "index.html: <script src='/units.js'></script> + <script src='/app.js'></script> SEM defer, caminhos absolutos (179-180). test.html: mock-api.js + units.js + app.js, TODOS com defer e caminhos relativos; mock-api.js PRIMEIRO (191-194; comentario no arquivo: a ordem importa — intercepta o fetch ANTES de app.js usar; defer preserva a ordem de execucao).",
+          "evidence": [
+            "index.html:179-180",
+            "test.html:191-194"
+          ]
+        },
+        {
+          "id": "e-css-href",
+          "statement": "index.html usa href='/style.css' (11, absoluto para o Spring); test.html usa href='style.css' (11, relativo — obrigatoria para Live Server).",
+          "evidence": [
+            "index.html:11",
+            "test.html:11"
+          ]
+        },
+        {
+          "id": "f-estrutural-maior",
+          "statement": "Nos DOIS arquivos as sections de resultado ficam FORA de main.app-main (o main fecha antes: index 149, test 155). Arvore index: body > #login-section, #registry-section > header.app-header + main.app-main(só config) + section.result x2. Arvore test: body > banner, #login-section, #registry-section > header.app-header + main.app-main(só config) + hr + .result_btn + .results-box > section.result x2. Titles diferem ('Gerenciador de Gastos Energéticos' vs 'Test Area — ...'); ambos tem fechamento de tags impreciso (section extra fechando em index:177 e test:189).",
+          "evidence": [
+            "index.html:64-177",
+            "test.html:70-189"
+          ]
+        }
+      ]
+    },
+    "app_js_flow": {
+      "type": "FACT",
+      "confidence": "HIGH",
+      "steps": [
+        {
+          "lines": "1-6",
+          "what": "state {userId (localStorage 'amparesUserId'), products, userProducts, lastProductId}"
+        },
+        {
+          "lines": "8-24",
+          "what": "refs DOM top-level: loginSection, registrySection, loginForm, registryForm, productSelect, userProducts, manualProductIdInput (PODE SER NULL — #manual-product-id e legado, nenhum HTML declara), currentUserId, loginMessage, registryMessage, results, calculateButton, logoutButton, userIdInput, idRow, authIdToggle"
+        },
+        {
+          "lines": "26-31",
+          "what": "wiring: loginForm submit -> handleLogin; registryForm submit -> handleRegistrySubmit; calculateButton click -> calculateResults; logoutButton click -> clearSession; authIdToggle click -> setIdRowVisible(idRow.hidden); document keydown -> handleAuthKeydown"
+        },
+        {
+          "lines": "33-49",
+          "what": "restauracao de sessao no load: se state.userId -> POST /auth/login (revalida; tambem CRIA usuario se necessario) -> showRegistryScreen + loadProducts; catch -> resetSessionState + 'Sessao expirada. Toque em Começar agora.'"
+        },
+        {
+          "lines": "51-116",
+          "what": "handleLogin (area manual oculta -> generateRandomUserId 7 digitos via crypto.getRandomValues, 110-116; visivel -> exige ID digitado) -> POST /auth/login -> localStorage -> showRegistryScreen + loadProducts; setIdRowVisible (90-99); handleAuthKeydown ESC (102-107)"
+        },
+        {
+          "lines": "118-166",
+          "what": "loadProducts (GET /products?size=1000 -> normalizeProducts aceita HAL _embedded/content/array), loadUserProducts (GET /registryUserProducts/user/{userId}), renderProducts (select)"
+        },
+        {
+          "lines": "168-206",
+          "what": "renderUserProducts: ul.results__list com li.results__item (formatRegistryDetails usa Units.formatHoursPerDay x2 + formatProduct); vazio -> showUserProductsMessage (p.results__empty)"
+        },
+        {
+          "lines": "208-250",
+          "what": "handleRegistrySubmit: payload {userId, productId, quantity, avgActiveHours[, hoursStandby]} -> POST /registryUserProducts -> state.lastProductId, loadUserProducts, setMessage('Produto registrado. Calculando resultado...','success') -> AWAIT calculateResults() (246)"
+        },
+        {
+          "lines": "262-282",
+          "what": "calculateResults: guard !state.userId -> return; showTextResult('Calculando...') (267) -> POST /api/metrics/users/calculate {userId} (270-273) -> renderCalculationResult(result); catch: error.status 404 -> showTextResult('Nenhum consumo calculado — registre um produto.'), senao showTextResult('Falha ao calcular: ...')"
+        },
+        {
+          "lines": "284-310",
+          "what": "renderCalculationResult: cria ul.results__list; metricRow('Consumo médio diário', Units.formatEnergyKwh(avgDailyKwh,'dia')) so se formatado, ('Consumo médio anual', formatEnergyKwh(avgUseInYear,'ano')) so se formatado, ('Gasto por dia'/'Gasto por ano', Units.formatBrl) quando dailyCost != null && annualCost != null, + 1 metricRow('Produto', formatRegistryDetails) por productsList; results.replaceChildren(list) (309)"
+        },
+        {
+          "lines": "312-326",
+          "what": "metricRow(label, value): li.results__item > span.results__label + span.results__value.results__value--accent"
+        },
+        {
+          "lines": "328-359",
+          "what": "request(path, options): fetch credentials:'include', Accept json, Content-Type so quando body; parse application/json|application/hal+json (senao text); !ok -> Error com message preferida (data.message do Spring > texto > status) e error.status = response.status"
+        },
+        {
+          "lines": "419-459",
+          "what": "showRegistryScreen (alterna hidden das sections), clearSession (POST /auth/logout), resetSessionState (limpa state+localStorage, showTextResult), showTextResult(text) (448-453: p.results__empty -> results.replaceChildren — PONTO NATURAL para estado de loading/overlay), setMessage(element,text,type) (455-459: troca classe --success/--error)"
+        }
+      ],
+      "units_dependency": {
+        "statement": "app.js referencia o global Units em 7 pontos (formatRegistryDetails x2: 190-191, formatProduct x1: 384, renderCalculationResult x4: 288-302) — units.js DEVE executar ANTES de app.js (index.html:179-180 sem defer; test.html:193-194 com defer preserva ordem). Quebrar a ordem -> ReferenceError 'Units is not defined' no load.",
+        "confidence": "HIGH"
+      }
+    },
+    "style_css": {
+      "type": "FACT",
+      "confidence": "HIGH",
+      "tokens": "Tokens em :root (9-77): --bg-base #232323 (11), --bg-elevated #303030 (12), --bg-overlay rgba(0,0,0,0.4) (15), --border #3A3A3A / --border-focus #FFCD1C (18,20), --accent #FFB812 (23), --accent-soft #FFCD1C (24), --accent-deep #BC8C04 (25), --text/#F5F5F5, --text-soft/#BFBFBF, --text-muted/#8A8A8A (28-30), --success #22C55E / --error #EF4444 (33-34), radii (37-40), --space-1..16 escala 8px (43-52), --font-ui Inter / --font-mono JetBrains Mono (55-56), --text-xs..--text-display (58-64), shadows (67-69), motion --duration-fast/--duration/--duration-slow = 100/200/300ms (72-74) + --ease/--ease-out cubic-bezier (75-76).",
+      "test_layout_prior_art": "AJUSTES DE LAYOUT JA EXISTENTES na worktree (+62 linhas vs HEAD, NAO COMMITADOS), criados pelo dev para o layout do test.html: .result_btn (985-991: flex centralizado, justify-self/justify-content center, padding 1em 2em), .result_btn button (993-998: width 25%, position relative, overflow hidden), :hover scale(1.01) (1000-1002), ::before brilho skewX(-20deg) deslizante (1004-1018), :focus-visible outline 3px #93c5fd (1020-1023), prefers-reduced-motion LOCAL (1025-1029); .result definida DUAS vezes: 483-487 (flex column) e override 1032-1038 (gap var(--space-5), min-width 1em, width 35%); .results-box (1040-1046: flex ROW, align-items center, justify-content space-around, gap 10px).",
+      "results_components": ".results (1048-1058: bg-elevated, border 1px, radius-lg, padding space-6, min-height 120px, flex column, gap space-3, shadow-default); .results__empty (1060-1066: text-soft, center, padding space-6 0); .results__list (1068-1075: sem list-style, flex column gap space-3); .results__item (1077-1084: flex baseline space-between, border-bottom 1px; :last-child remove 1086-1088); .results__label (1090-1093); .results__value (1095-1100: mono); .results__value--accent (1102-1104: var(--accent)); .results__error (1106-1109).",
+      "entry_animation_prior_art": ".result-hero (735-776) e sobretudo .result-hero--enter (778-780): animation: resultFadeIn var(--duration-slow) var(--ease-out) both; @keyframes resultFadeIn (782-791): opacity 0->1 + translateY(8px)->0 — PRIOR ART confirmado para animacao de entrada de elemento novo na tela.",
+      "overlay_context": "header.app-header: position sticky, top 0, z-index 10 (347-357) — qualquer overlay/body-level precisa de z-index > 10 (ex. 100). body tem min-height 100vh (90-95) e position static (fixed posiciona relativo a viewport). Ponto de insercao natural de um loading overlay no index.html: logo APOS </section>#registry-section (index.html:177) e ANTES dos <script> (179-180) — fora das sections, cobrindo login e registry. Reduced motion GLOBAL no fim do arquivo (1146-1154: animation-duration/transition-duration 0.01ms !important em *) — qualquer animacao nova ja e neutralizada la; o dev ainda assim manteve um bloco local para .result_btn (1025-1029). Responsive: max-width 640px (1112-1137) e min-width 1024px (.app-main max-width 820px, 1139-1143)."
+    },
+    "mock_api": {
+      "type": "FACT",
+      "confidence": "HIGH",
+      "statement": "mock-api.js (153 linhas, IIFE estrita sobre window): se ?api=real na URL -> return imediato (fetch passa adiante); senao substitui global.fetch por mockFetch com LATENCY_MS=150. Rotas: POST /auth/login -> {status:ok}; POST /auth/logout -> ok + limpa userProducts; GET /products -> array de 6 produtos fixos (ids 'mock-000N', campos name/brand/model/avgPowerW/avgStandbyPowerW opcional); GET /registryUserProducts/user/{id} -> array em memoria; POST /registryUserProducts -> valida productId, push {quantity, avgActiveHours, hoursStandby, product} -> 201; POST /api/metrics/users/calculate -> ResultDTO simulado (kWh/dia = q*P_ativa*h_ativas/1000 + q*P_standby*h_standby/1000; avgUseInYear = x365; custos = kWh x tarifa 0.95; ROUND 3 casas kWh / 2 casas BRL) ou 404 se vazio. Rota desconhecida -> 404 {message}."
+    },
+    "git_frontend_state": {
+      "type": "FACT",
+      "confidence": "HIGH",
+      "statement": "Frontend em 15/10/2026 ~18:00: COMMITADO em 725d51c ('Fix' 17:09): units.js NOVO (213 linhas), app.js migrado para Units (34 linhas alteradas), index.html +1 linha. SUJO NAO COMMITADO na worktree (git diff HEAD): index.html (70 linhas reestruturadas), app.js (+17), style.css (+62), units.js (+26, incl. stub createTimerForFront 215-217). UNTRACKED: test.html (196 linhas), mock-api.js (153 linhas). A variante de layout (botao Calcular centralizado + duas sections lado a lado) existe APENAS no test.html/worktree — o index.html de producao ainda tem o botao dentro da section.result. Risco: git checkout/clean descarta o redesign."
+    }
+  },
   "tests": {
     "java": {
       "framework": "JUnit 5 (Spring Boot 4.1.1 starters de test) + Mockito; @DataJpaTest com H2Dialect em testes de repositorio",
@@ -894,26 +1106,34 @@
       ],
       "status": "PARCIALMENTE DESATUALIZADO no estado atual: TestCanonicalContractAgreement::test_all_sources_agree_on_product_fields FALHA (espera contrato de 8 campos; java/create.sql agora tem 9 com avg_idle_energy_for_hour e o drawio nao foi atualizado) — verificado nesta exploracao (1 failed, 2 passed). Suite completa Python NAO executada nesta exploracao."
     },
-    "ci": "sem .github/ — nenhum pipeline CI no repositorio"
+    "ci": "sem .github/ — nenhum pipeline CI no repositorio",
+    "frontend": {
+      "framework": "sem framework de testes; smoke test node puro (scripts/unit_tests/units_smoke_test.js) que carrega units.js via guard module.exports",
+      "command": "node scripts/unit_tests/units_smoke_test.js",
+      "status": "NAO EXECUTADO nesta exploracao (so leitura de codigo; docs/frontend_units.md registra execucao do smoke test na criacao do modulo, 725d51c)"
+    }
   },
   "documentation": {
     "README.md": "minimo (2 linhas, descricao informal)",
     "TODO.md (raiz)": "TODO do projeto (H/A/S) com tasks TASK-001..TASK-041 para Java+coletor; varios itens H concluidos em 13/10 (migrations 005/006 aplicadas, role restrito, import PBE real, cadencia decidida; TASK-038 pendente de autorizacao)",
     "docs/TODO.md": "TODO especifico do redesign do frontend (fase historica; backend fora de escopo)",
+    "docs/frontend_units.md": "doc formal do modulo units.js (commitado em 725d51c): tabela das 6 funcoes Units, integracao (units.js antes de app.js), tabela de 4 pontos de exibicao/7 chamadas no app.js, guarda Node do smoke test — SINCRONO com o codigo lido nesta exploracao",
+    "docs/setup_postgres_docker.md": "guia de setup do Postgres em Docker (725d51c; fora do escopo frontend)",
     "docs/arquiteture.drawio": "DESATUALIZADO quanto a avg_idle_energy_for_hour (produto com 8 campos no diagrama vs 9 no codigo/create.sql); create.sql:43-45 registra isso; teste de sinergia Python falha por causa disso",
     "docs/code-review-analysis.md, docs/data_normalizate.md": "analises previas (historicas)",
     "energy_collector/docs/data-sources.md": "atualizado: modelo operacional multi-fonte, WattSimple, INMETRO/PBE transporte real, IEA, manutencao, compatibilidade com Spring",
     ".agents/specs/spec-ampares-system-specification.md": "especificacao geral do sistema (13/10 16:30)",
     ".agents/specs/spec-registry-refactor-unified-consumption-engine.md": "SPEC da refatoracao do registro/motor; OQ1-OQ6 resolvidas (OQ3: RegistryCalculator eliminado); nota: ainda cita endpoint total-energy que NAO existe mais no controller",
     ".agents/specs/spec-standby-metrics-service.md": "SPEC da integracao standby (13/10 18:13); secao 6 mantinha a fonte de P_standby como OPEN QUESTION (PROPOSAL A/B/C); o codigo implementou PROPOSAL A (Product.avgIdleEnergyForHour) SEM decision record novo (ultimo: decision_008)",
+    ".agents/specs/spec-docker-postgres-frontend-units.md": "SPEC docker+postgres+frontend units (440 linhas, commitada em 725d51c)",
     ".agents/decisions/decision_001..008.json": "decision records (hub, escopo DEV/agentes, User sem colecao, contrato null/empty, HoursProvider removido, exclusao de registros invalidos, contrato canonico/INSERT-ONLY/PBE, cadencia PBE)",
     ".agents/AGENTS.md, RULES.md, TODO.md, VISUALSPEC.md": "VAZIOS (0 bytes) — sem regras locais efetivas",
     "conflito code<->doc remanescente": "drawio (8 campos) e teste de sinergia Python vs create.sql/Product.java (9 campos, avg_idle_energy_for_hour) desde 13/10 18:27/18:36"
   },
   "state": {
-    "git": "branch main @ 41b9a84 ('Add unit tests for ConsumptionCalculator, HourService, ProductForRegistryConverter, and TariffService', 15/10/2026 13:40-03:00). NOTA (FACT): apesar da mensagem focar em testes, o diff real do commit = integracao final de standby que estava suja na worktree em 13/10 (migrations/create.sql 9 colunas, Models/Product.java +avgIdleEnergyForHour, Services/Metrics/ConsumeMetricsService.java, Services/Metrics/StandbyMetricsService.java, Services/User/ConsumeMetricsServiceTest.java) + 2 testes novos (ConsumeMetricsServiceStandbyIntegrationTest, StandbyMetricsServiceTest) + .agents/protocol/docs/codebase-explorer.json (relatorio de 13/10) + .playwright-mcp/*.log|*.yml. Worktree SUJA (nao commitado): M Controllers/MetricsController.java, M DTO/MetricsByUserDTO.java.",
-    "worktree_changes_during_exploration": "15/10 ~14:00-14:15 (re-verificacao parcial pelo codebase-explorer): mudanca NAO commitada encontrada na worktree — bean validation em MetricsByUserDTO: record MetricsByUserDTO(@Positive int userId) + @Valid nos 4 endpoints que o consomem no MetricsController (calculate:57-65, average-energy:71-77, most-consumer-product:84-92, standby-consumption-avg:99-105); import @NotBlank removido. standby-consumption-by-product (MetricsStandbyByProductDTO) e /search/{userId} permanecem SEM validacao de bean. Efeito pratico: userId<=0 agora gera 400 nas bordas MVC desses 4 endpoints (anotacoes inertes nos testes unitarios existentes, que chamam o controller direto; NAO verificado via HTTP/MockMvc). Nenhuma outra edicao de src/ ou static/ entre a1d9415 e 41b9a84 (static/ sem commits desde a1d9415); TODO.md, .agents/decisions/, .agents/specs/, energy_collector/ e docs/ inalterados entre os 2 commits.",
-    "db": "Postgres local localhost:5432/neondb (Postgres 18.6); migrado do Neon; backup em backups/neondb_backup_20261013_162001.dump; registros atuais no TODO (nao re-verificados nesta exploracao): 253 product, 685 observacoes, 3 ENCE",
+    "git": "branch main @ 725d51c ('Fix', 15/10/2026 17:09-03:00). Diff 41b9a84..725d51c: bean validation COMMITADA (MetricsController +11/-2, MetricsByUserDTO +4/-1), units.js NOVO (213 linhas), app.js migrado para Units, index.html +1, + docs/frontend_units.md, docs/setup_postgres_docker.md, scripts/setup_postgres_docker.sh, scripts/unit_tests/units_smoke_test.js, .agents/specs/spec-docker-postgres-frontend-units.md, .agents/protocol/docs/codebase-explorer.json (relatorio 17:20). NOTA (FACT): apesar da mensagem focar em testes, o diff real do commit = integracao final de standby que estava suja na worktree em 13/10 (migrations/create.sql 9 colunas, Models/Product.java +avgIdleEnergyForHour, Services/Metrics/ConsumeMetricsService.java, Services/Metrics/StandbyMetricsService.java, Services/User/ConsumeMetricsServiceTest.java) + 2 testes novos (ConsumeMetricsServiceStandbyIntegrationTest, StandbyMetricsServiceTest) + .agents/protocol/docs/codebase-explorer.json (relatorio de 13/10) + .playwright-mcp/*.log|*.yml. Worktree SUJA (nao commitado, 15/10 ~18:00): M TODO.md, M energy_collector (pycache + data_collector.log), M migrations/migrate.sh, M static/app.js|index.html|style.css|units.js, ?? static/test.html, ?? static/mock-api.js. Backend Java: limpo (bean validation ja commitada).",
+    "worktree_changes_during_exploration": "15/10 ~18:00 (exploracao FRONTEND pelo codebase-explorer): a mudanca de bean validation que estava suja em 15/10 cedo FOI COMMITADA em 725d51c (MetricsController @Valid em 4 endpoints + MetricsByUserDTO @Positive userId). A worktree agora esta suja com o REDesign de LAYOUT do frontend, NAO commitado: index.html reestruturado (70 linhas: #calculate-button movido de dentro de section.result para apos <hr>, wrappers .result_btn/.results-box conforme test.html), app.js +17, style.css +62 (.result_btn 985-1029, .results-box 1040-1046, .result width 35% 1032-1038), units.js +26 (stub vazio createTimerForFront 215-217); NOVOS untracked test.html (variante mock 196 linhas) e mock-api.js (153 linhas). Efeito pratico (agora no historico git): userId<=0 gera 400 nas bordas MVC desses 4 endpoints (anotacoes inertes nos testes unitarios, que chamam o controller direto; NAO verificado via HTTP/MockMvc).",
+    "db": "Postgres local localhost:5432/neondb (Postgres 18.6); migrado do Neon; backup mais recente em backups/neon_backup_20261015_174603.dump (dump de 15/10 17:46; o dump de 13/10 foi removido); registros atuais no TODO (nao re-verificados nesta exploracao): 253 product, 685 observacoes, 3 ENCE",
     "ddl": "spring.jpa.hibernate.ddl-auto=update; SEM Flyway; migrations versionadas como fonte canonica (004/005/006 + add_avg_idle_energy_for_hour.sql); Hibernate tambem aplica colunas a partir das entidades",
     "db_schema_note": "product: id UUID PK, name/brand/model/category/subcategory VARCHAR, avg_power_w NUMERIC, annual_energy_kwh NUMERIC, avg_idle_energy_for_hour NUMERIC (9 colunas — create.sql). product_source_observation: id UUID PK, canonical_product_id FK, source+external_id UNIQUE, power_w, annual_energy_kwh, standby_power_w, is_generic, voltage_raw/kind/min_v/max_v, raw_energy_value/unit, observed_at. registry_user_product: id UUID PK, user_id INT FK NOT NULL, product_id UUID FK NOT NULL, quantity INT NOT NULL, avg_active_hours NUMERIC, hours_standby NUMERIC, UNIQUE(user_id, product_id) no SQL (nao anotada na entidade; checada em codigo). users: id SERIAL PK, name VARCHAR(50).",
     "energia_standby_pratica": "O campo product.avg_idle_energy_for_hour existe no JPA e no DDL, mas NENHUM produtor o popula hoje (coletor grava standby_power_w somente em product_source_observation, que nao tem entidade JPA; fontes INMETRO/WattSimple retornam standby_power_w=None). Efeito pratico: na maioria dos produtos o standby sera nao calculavel (endpoints dedicados vazios; total = ativo). Populacao/backfill pendente de decisao.",
@@ -922,7 +1142,8 @@
       "./mvnw clean test => Tests run: 193, Failures: 0, Errors: 0, Skipped: 0 — BUILD SUCCESS (2026-10-15 ~14:10-03:00; clean para descartar build incremental; Postgres 18.6 local conectou no contextLoads)",
       "./mvnw test -Dtest=ConsumptionCalculatorTest,HourServiceTest,StandbyMetricsServiceTest,ConsumeMetricsServiceStandbyIntegrationTest => 32+16+23+14 = 85 testes @Nested verdes (15/10, execucao isolada)",
       "python3 -m pytest energy_collector/tests/test_brazil_normalization.py::TestCanonicalContractAgreement -q => 1 failed, 2 passed (contrato 8 vs 9 campos; verificado em 13/10, energy_collector INALTERADO desde entao — nao re-executado em 15/10)",
-      "git log a1d9415..HEAD => 1 commit (41b9a84, 15/10 13:40); git status => 2 arquivos dirty (MetricsController.java, MetricsByUserDTO.java)"
+      "git log 41b9a84..HEAD => 1 commit (725d51c 'Fix', 15/10 17:09); git show 725d51c --stat e git diff HEAD --stat (15/10 ~18:00) => worktree suja: static/app.js|index.html|style.css|units.js + untracked static/test.html|mock-api.js; backend Java limpo",
+      "node scripts/unit_tests/units_smoke_test.js => NAO EXECUTADO nesta exploracao (smoke test do units.js; docs/frontend_units.md registra execucao na criacao do modulo)"
     ]
   },
   "calculations": {
@@ -1061,7 +1282,7 @@
     ]
   },
   "api_contracts": {
-    "note": "Contratos REST atuais (15/10/2026). Sem @ControllerAdvice: excecoes de dominio viram 500; 400 apenas por bean validation nas bordas. ATUALIZACAO NAO COMMITADA (worktree 15/10): MetricsByUserDTO ganhou @Positive em userId e os endpoints calculate/average-energy/most-consumer-product/standby-consumption-avg passaram a usar @Valid — userId<=0 agora resulta em 400; standby-consumption-by-product (MetricsStandbyByProductDTO) e /search/{userId} seguem SEM validacao de bean.",
+    "note": "Contratos REST atuais (15/10/2026). Sem @ControllerAdvice: excecoes de dominio viram 500; 400 apenas por bean validation nas bordas. ATUALIZACAO COMMITADA em 725d51c (15/10 17:09): MetricsByUserDTO ganhou @Positive em userId e os endpoints calculate/average-energy/most-consumer-product/standby-consumption-avg usam @Valid — userId<=0 resulta em 400; standby-consumption-by-product (MetricsStandbyByProductDTO) e /search/{userId} seguem SEM validacao de bean.",
     "endpoints": [
       {
         "method": "POST",
@@ -1099,28 +1320,28 @@
         "method": "POST",
         "path": "/api/metrics/users/calculate",
         "handler": ".../Controllers/MetricsController.java:57-65",
-        "request": "MetricsByUserDTO {userId:int @Positive} (@Valid — mudanca nao commitada 15/10; userId<=0 -> 400)",
+        "request": "MetricsByUserDTO {userId:int @Positive} (@Valid — commitado em 725d51c; userId<=0 -> 400)",
         "response": "200 + ResultDTO (medias/totais/custos/productsList) | 400 userId<=0 (nao commitado) | 404 quando nao calculavel | 500 user inexistente/tarifa indisponivel"
       },
       {
         "method": "POST",
         "path": "/api/metrics/users/average-energy",
         "handler": ".../Controllers/MetricsController.java:71-77",
-        "request": "{userId:int @Positive} (@Valid — nao commitado; userId<=0 -> 400)",
+        "request": "{userId:int @Positive} (@Valid — commitado em 725d51c; userId<=0 -> 400)",
         "response": "200 + BigDecimal (media anual TOTAL por associacao; escala 6); vazio -> ZERO (orElse); 400 userId<=0 (nao commitado)"
       },
       {
         "method": "POST",
         "path": "/api/metrics/users/most-consumer-product",
         "handler": ".../Controllers/MetricsController.java:84-92",
-        "request": "{userId:int @Positive} (@Valid — nao commitado; userId<=0 -> 400)",
+        "request": "{userId:int @Positive} (@Valid — commitado em 725d51c; userId<=0 -> 400)",
         "response": "200 + Product (entity JPA) | 404 se vazio | 400 userId<=0 (nao commitado)"
       },
       {
         "method": "POST",
         "path": "/api/metrics/users/standby-consumption-avg",
         "handler": ".../Controllers/MetricsController.java:99-105",
-        "request": "{userId:int @Positive} (@Valid — nao commitado; userId<=0 -> 400)",
+        "request": "{userId:int @Positive} (@Valid — commitado em 725d51c; userId<=0 -> 400)",
         "response": "200 + BigDecimal ANUAL (media sobre calculaveis; escala 6); vazio -> ZERO (orElse); 400 userId<=0 (nao commitado)"
       },
       {
@@ -1226,7 +1447,19 @@
     },
     {
       "type": "FACT",
-      "statement": "Mudanca de bean validation (MetricsByUserDTO @Positive + @Valid em 4 endpoints do MetricsController) esta NA WORKTREE sem commit em 15/10 — comportamento 400 por userId<=0 nao esta no historico git e nao foi verificado via HTTP/MockMvc (apenas inspecao de codigo; testes unitarios existentes chamam o controller direto e nao exercitam a validacao)."
+      "statement": "RESOLVIDO em 725d51c (15/10 17:09): bean validation (MetricsByUserDTO @Positive + @Valid em 4 endpoints do MetricsController) foi COMMITADA — comportamento 400 por userId<=0 esta no historico git (continua NAO verificado via HTTP/MockMvc; testes unitarios chamam o controller direto)."
+    },
+    {
+      "type": "FACT",
+      "statement": "O redesign de LAYOUT do frontend (test.html + mock-api.js untracked; ajustes sujos em index.html/app.js/style.css/units.js) existe APENAS na worktree — nao commitado. Risco de perda em git checkout/clean; o index.html de producao ainda usa o layout antigo (botao Calcular dentro de section.result)."
+    },
+    {
+      "type": "FACT",
+      "statement": "units.js:215-217 contem stub VAZIO createTimerForFront() (funcao morta, apenas declarada sem logica) — presente apenas na worktree suja, provavel resto de experimento."
+    },
+    {
+      "type": "PROPOSAL",
+      "statement": "Se a tarefa seguinte implementar um loading overlay/animacao no index.html: posicionar no body-level apos </section>#registry-section (index.html:177), z-index > 10 (app-header sticky z-index:10), reutilizar tokens (--accent, --duration-slow, --ease-out) e o prior art resultFadeIn (style.css:782-791); aplicar a mesma estrutura no test.html para validar via Live Server com mock-api.js."
     }
   ]
 }

@@ -94,18 +94,6 @@
                        </select>
                    </div>
 
-                    <div class="config__field">
-                        <label class="config__label" for="manual-product-id">Ou informe o ID do produto manualmente</label>
-                        <input
-                            id="manual-product-id"
-                            name="manualProductId"
-                            type="text"
-                            class="field-input"
-                            placeholder="UUID do produto"
-                            spellcheck="false"
-                        >
-                   </div>
-
                     <div class="config__fields">
                         <div class="config__field">
                             <label class="config__label" for="quantity">Quantidade</label>
@@ -155,40 +143,109 @@
                    </button>
                </form>
 
-                 <p id="registry-message" class="message" role="status" aria-live="polite">
+                 <p id="registry-message" class="message" role="status" aria-live="polite"></p>
              </section>
 
-             <section class="result" aria-labelledby="user-products-heading">
-                 <div class="section-heading">
-                     <span class="section-heading__eyebrow">seus produtos</span>
-                     <h2 id="user-products-heading" class="section-heading__title">Produtos em uso</h2>
-                 </div>
-                 <div id="user-products" class="results">
-                     <p class="results__empty">Carregando seus produtos...</p>
-                 </div>
-             </section>
+            </main>
 
-             <!-- Result -->
-            <section class="result" aria-labelledby="result-heading">
-                <div class="section-heading">
-                    <span class="section-heading__eyebrow">resultado</span>
-                    <h2 id="result-heading" class="section-heading__title">Seu consumo</h2>
-               </div>
+            <hr style="width: 80%;">
 
+            <div class="result_btn">
                 <button id="calculate-button" type="button" class="config__submit">
                     Calcular resultado
                     <span aria-hidden="true">→</span>
-               </button>
+                </button>
+            </div>
 
-                <div id="results" class="results">
-                    <p class="results__empty">Nenhum consumo calculado ainda</p>
-               </div>
-           </section>
+            <div class="results-box">
+                <section class="result result--highlight" aria-labelledby="user-products-heading">
+                    <div class="section-heading">
+                        <span class="section-heading__eyebrow">seus produtos</span>
+                        <h2 id="user-products-heading" class="section-heading__title">Produtos em uso</h2>
+                    </div>
+                    <div id="user-products" class="results">
+                        <p class="results__empty">Carregando seus produtos...</p>
+                    </div>
+                </section>
 
-       </main>
-   </section>
+                <!-- Result -->
+                <section class="result" aria-labelledby="result-heading">
+                    <div class="section-heading">
+                        <span class="section-heading__eyebrow">resultado</span>
+                        <h2 id="result-heading" class="section-heading__title">Seu consumo</h2>
+                    </div>
 
-    <script src="/units.js"></script>
-    <script src="/app.js"></script>
+                    <div id="results" class="results">
+                        <p class="results__empty">Nenhum consumo calculado ainda</p>
+                    </div>
+                </section>
+            </div>
+        </section>
+
+    <!-- Loader de carregamento (Uiverse: Circuit Board Loader by Vosoone, MIT) -->
+    <div id="front-loader" class="front-loader" hidden role="status" aria-live="polite" aria-label="Carregando resultado">
+        <div class="front-loader__box">
+            <svg viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg" class="front-loader__svg" aria-hidden="true">
+                <defs>
+                    <linearGradient id="chipGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" style="stop-color: var(--bg-active);"></stop>
+                        <stop offset="100%" style="stop-color: var(--bg-base);"></stop>
+                    </linearGradient>
+                    <linearGradient id="textGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" style="stop-color: var(--text);"></stop>
+                        <stop offset="100%" style="stop-color: var(--text-muted);"></stop>
+                    </linearGradient>
+                    <linearGradient id="pinGradient" x1="1" y1="0" x2="0" y2="0">
+                        <stop offset="0%" style="stop-color: var(--text-soft);"></stop>
+                        <stop offset="50%" style="stop-color: var(--text-muted);"></stop>
+                        <stop offset="100%" style="stop-color: var(--border-strong);"></stop>
+                    </linearGradient>
+                </defs>
+                <g class="front-loader__traces">
+                    <path d="M100 100 H200 V210 H326" class="trace-bg"></path>
+                    <path d="M100 100 H200 V210 H326" class="trace-flow front-loader__trace--tone-3"></path>
+                    <path d="M80 180 H180 V230 H326" class="trace-bg"></path>
+                    <path d="M80 180 H180 V230 H326" class="trace-flow front-loader__trace--tone-2"></path>
+                    <path d="M60 260 H150 V250 H326" class="trace-bg"></path>
+                    <path d="M60 260 H150 V250 H326" class="trace-flow front-loader__trace--tone-1"></path>
+                    <path d="M100 350 H200 V270 H326" class="trace-bg"></path>
+                    <path d="M100 350 H200 V270 H326" class="trace-flow front-loader__trace--tone-4"></path>
+                    <path d="M700 90 H560 V210 H474" class="trace-bg"></path>
+                    <path d="M700 90 H560 V210 H474" class="trace-flow front-loader__trace--tone-2"></path>
+                    <path d="M740 160 H580 V230 H474" class="trace-bg"></path>
+                    <path d="M740 160 H580 V230 H474" class="trace-flow front-loader__trace--tone-4"></path>
+                    <path d="M720 250 H590 V250 H474" class="trace-bg"></path>
+                    <path d="M720 250 H590 V250 H474" class="trace-flow front-loader__trace--tone-5"></path>
+                    <path d="M680 340 H570 V270 H474" class="trace-bg"></path>
+                    <path d="M680 340 H570 V270 H474" class="trace-flow front-loader__trace--tone-1"></path>
+                </g>
+                <rect x="330" y="190" width="140" height="100" rx="20" ry="20" fill="url(#chipGradient)" style="stroke: var(--border);" stroke-width="3" filter="drop-shadow(0 0 6px rgba(0,0,0,0.8))"></rect>
+                <g>
+                    <rect x="322" y="205" width="8" height="10" fill="url(#pinGradient)" rx="2"></rect>
+                    <rect x="322" y="225" width="8" height="10" fill="url(#pinGradient)" rx="2"></rect>
+                    <rect x="322" y="245" width="8" height="10" fill="url(#pinGradient)" rx="2"></rect>
+                    <rect x="322" y="265" width="8" height="10" fill="url(#pinGradient)" rx="2"></rect>
+                </g>
+                <g>
+                    <rect x="470" y="205" width="8" height="10" fill="url(#pinGradient)" rx="2"></rect>
+                    <rect x="470" y="225" width="8" height="10" fill="url(#pinGradient)" rx="2"></rect>
+                    <rect x="470" y="245" width="8" height="10" fill="url(#pinGradient)" rx="2"></rect>
+                    <rect x="470" y="265" width="8" height="10" fill="url(#pinGradient)" rx="2"></rect>
+                </g>
+                <text x="400" y="240" font-family="Arial, sans-serif" font-size="22" fill="url(#textGradient)" text-anchor="middle" alignment-baseline="middle">Loading</text>
+                <circle cx="100" cy="100" r="5" style="fill: var(--bg-base)"></circle>
+                <circle cx="80" cy="180" r="5" style="fill: var(--bg-base)"></circle>
+                <circle cx="60" cy="260" r="5" style="fill: var(--bg-base)"></circle>
+                <circle cx="100" cy="350" r="5" style="fill: var(--bg-base)"></circle>
+                <circle cx="700" cy="90" r="5" style="fill: var(--bg-base)"></circle>
+                <circle cx="740" cy="160" r="5" style="fill: var(--bg-base)"></circle>
+                <circle cx="720" cy="250" r="5" style="fill: var(--bg-base)"></circle>
+                <circle cx="680" cy="340" r="5" style="fill: var(--bg-base)"></circle>
+            </svg>
+        </div>
+    </div>
+
+    <script src="/units.js" defer></script>
+    <script src="/app.js" defer></script>
 </body>
 </html>

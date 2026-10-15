@@ -13,6 +13,7 @@ import cannelo.marques.interdisciplinar.interdisciplinar.Models.RegistryUserProd
 import cannelo.marques.interdisciplinar.interdisciplinar.Models.User;
 import cannelo.marques.interdisciplinar.interdisciplinar.Repository.UserRepository;
 import cannelo.marques.interdisciplinar.interdisciplinar.Services.Registry.RegistryUserService;
+import cannelo.marques.interdisciplinar.interdisciplinar.Services.User.ProductVoltageService;
 import cannelo.marques.interdisciplinar.interdisciplinar.Services.User.UserService;
 import cannelo.marques.interdisciplinar.interdisciplinar.exceptions.UserNotFoundException;
 import io.swagger.v3.oas.annotations.Operation;
@@ -54,14 +55,17 @@ public class RegistryUserProductController {
     private final RegistryUserService registryUserService;
     private final UserService userService;
     private final UserRepository userRepository;
+    private final ProductVoltageService productVoltageService;
 
     public RegistryUserProductController(
             RegistryUserService registryUserService,
             UserService userService,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            ProductVoltageService productVoltageService) {
         this.registryUserService = registryUserService;
         this.userService = userService;
         this.userRepository = userRepository;
+        this.productVoltageService = productVoltageService;
     }
 
     @Operation(
@@ -88,6 +92,11 @@ public class RegistryUserProductController {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException("User not found: " + userId));
 
-        return ResponseEntity.ok(userService.findAllProductrs(user));
+        List<RegistryUserProduct> registries = userService.findAllProductrs(user);
+
+        productVoltageService.decorate(
+                registries.stream().map(RegistryUserProduct::getProduct).toList());
+
+        return ResponseEntity.ok(registries);
     }
 }

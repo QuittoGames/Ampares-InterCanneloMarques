@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#232323">
+    <title>Test Area — Gerenciador de Gastos Energéticos</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- Banner do ambiente de teste (não existe no index.html real). -->
+    <p class="message message--success" style="margin: 8px 16px;">
+        Modo teste (mock) — aberto via Live Server, sem backend Spring.
+        Adicione <code>?api=real</code> à URL para desligar o mock.
+    </p>
+
+    <!-- ============================================================ -->
+    <!-- LOGIN                                                         -->
+    <!-- ============================================================ -->
+    <section id="login-section" class="auth" aria-label="Login">
+        <div class="auth__card">
+            <button
+                type="button"
+                id="auth-id-toggle"
+                class="auth__brand"
+                aria-expanded="false"
+                aria-controls="user-id-row"
+                aria-label="Gerenciador de Gastos Energéticos — abrir área restrita para digitar ID manualmente"
+            >
+                <span class="auth__brand-mark" aria-hidden="true">
+                    <img class="icon" src="assets/icons/icons.png" alt="ícone do sistema">
+               </span>
+                <span>Gerenciador de Gastos Energéticos</span>
+           </button>
+
+            <h1 class="auth__title">Seu consumo,<br>sob controle</h1>
+            <p class="auth__subtitle">Veja quanto seus aparelhos consomem de energia.</p>
+
+            <form id="login-form" class="auth__form" autocomplete="off">
+                <label class="visually-hidden" for="user-id">ID do usuário</label>
+                <div class="auth__id-row" id="user-id-row" hidden>
+                    <input
+                        id="user-id"
+                        class="auth__input"
+                        name="userId"
+                        type="number"
+                        inputmode="numeric"
+                        min="1"
+                        placeholder="Digite seu ID"
+                        aria-describedby="login-message"
+                    >
+                </div>
+                <button type="submit" class="auth__button">
+                    Começar agora
+                    <span aria-hidden="true">→</span>
+               </button>
+           </form>
+
+            <p id="login-message" class="auth__message" role="status" aria-live="polite"></p>
+       </div>
+   </section>
+
+    <!-- ============================================================ -->
+    <!-- CALCULATOR / REGISTRY                                         -->
+    <!-- ============================================================ -->
+    <section id="registry-section" class="app-shell" aria-label="Calculadora de consumo" hidden>
+        <header class="app-header">
+            <div class="app-header__brand">
+                <img class="icon" src="assets/icons/icons.png" alt="ícone do sistema">
+                <span>Gerenciador de Gastos Energéticos</span>
+           </div>
+            <div class="app-header__user">
+                <span class="muted">ID</span>
+                <span id="current-user-id" class="app-header__user-id">—</span>
+                <button id="logout-button" class="app-header__logout" type="button">
+                    sair <span aria-hidden="true">→</span>
+               </button>
+           </div>
+       </header>
+
+        <main class="app-main">
+
+            <!-- Registry form -->
+            <section class="config" aria-labelledby="registry-heading">
+                <div class="section-heading">
+                    <span class="section-heading__eyebrow">registrar</span>
+                    <h2 id="registry-heading" class="section-heading__title">Registrar produto em uso</h2>
+               </div>
+
+                 <form id="registry-form" class="config__form" autocomplete="off">
+                     <div class="config__field">
+                         <label class="config__label" for="product-select">Produto cadastrado</label>
+
+                         <select id="product-select" name="productId" class="field-input">
+                            <option value="">Carregando produtos…</option>
+                       </select>
+                   </div>
+
+                    <div class="config__fields">
+                        <div class="config__field">
+                            <label class="config__label" for="quantity">Quantidade</label>
+                            <input
+                                id="quantity"
+                                name="quantity"
+                                type="number"
+                                min="1"
+                                step="1"
+                                value="1"
+                                class="field-input"
+                                required
+                            >
+                       </div>
+                        <div class="config__field">
+                            <label class="config__label" for="avg-active-hours">Horas ativas por dia</label>
+                            <input
+                                id="avg-active-hours"
+                                name="avgActiveHours"
+                                type="number"
+                                min="0"
+                                step="0.1"
+                                value="4"
+                                class="field-input"
+                                required
+                            >
+                       </div>
+                        <div class="config__field">
+                            <label class="config__label" for="hours-standby">
+                                Horas em standby por dia
+                                <span class="config__hint">opcional</span>
+                           </label>
+                            <input
+                                id="hours-standby"
+                                name="hoursStandby"
+                                type="number"
+                                min="0"
+                                step="0.1"
+                                class="field-input"
+                            >
+                       </div>
+                   </div>
+
+                    <button type="submit" class="config__submit">
+                        Registrar uso
+                        <span aria-hidden="true">→</span>
+                   </button>
+                </form>
+
+                <p id="registry-message" class="message" role="status" aria-live="polite"></p>
+            </section>
+
+        </main>
+
+        <hr style="width: 80%;">
+
+        <div class="result_btn">
+            <button id="calculate-button" type="button" class="config__submit">
+                Calcular resultado
+                <span aria-hidden="true">→</span>
+            </button>
+        </div>
+
+        <div class="results-box">
+            <section class="result" aria-labelledby="user-products-heading">
+                <div class="section-heading">
+                    <span class="section-heading__eyebrow">seus produtos</span>
+                    <h2 id="user-products-heading" class="section-heading__title">Produtos em uso</h2>
+                </div>
+                <div id="user-products" class="results">
+                    <p class="results__empty">Carregando seus produtos...</p>
+                </div>
+            </section>
+
+                <!-- Result -->
+            <section class="result" aria-labelledby="result-heading">
+                <div class="section-heading">
+                    <span class="section-heading__eyebrow">resultado</span>
+                    <h2 id="result-heading" class="section-heading__title">Seu consumo</h2>
+                </div>
+
+                <div id="results" class="results">
+                    <p class="results__empty">Nenhum consumo calculado ainda</p>
+                </div>
+            </section>
+        </div>
+        </section>
+
+            <!-- Ordem importa: mock-api.js intercepta o fetch ANTES do app.js usar. -->
+            <script src="mock-api.js" defer></script>
+            <script src="units.js" defer></script>
+    <script src="app.js" defer></script>
+</body>
+</html>

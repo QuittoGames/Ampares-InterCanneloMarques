@@ -31,6 +31,7 @@ import cannelo.marques.interdisciplinar.interdisciplinar.Repository.RegistryUser
 import cannelo.marques.interdisciplinar.interdisciplinar.Repository.UserRepository;
 import cannelo.marques.interdisciplinar.interdisciplinar.Services.Registry.ProductForRegistryConverter;
 import cannelo.marques.interdisciplinar.interdisciplinar.Services.Registry.RegistryUserService;
+import cannelo.marques.interdisciplinar.interdisciplinar.Services.User.ProductVoltageService;
 import cannelo.marques.interdisciplinar.interdisciplinar.Services.User.UserService;
 import cannelo.marques.interdisciplinar.interdisciplinar.exceptions.InvalidRegistryException;
 import cannelo.marques.interdisciplinar.interdisciplinar.exceptions.ProductNotFoundException;
@@ -54,6 +55,8 @@ class RegistryUserProductControllerTest {
     private ProductRepository productRepository;
     @Mock
     private RegistryUserProductRepository registryRepository;
+    @Mock
+    private ProductVoltageService productVoltageService;
 
     private User user;
     private Product product;
@@ -67,7 +70,8 @@ class RegistryUserProductControllerTest {
 
     /** Controller com serviço mockado — usado para verificar a delegação. */
     private RegistryUserProductController controllerWithMockedService() {
-        return new RegistryUserProductController(registryUserService, userService, userRepository);
+        return new RegistryUserProductController(
+                registryUserService, userService, userRepository, productVoltageService);
     }
 
     /** Controller com serviço REAL — exercita o Cenário C ponta a ponta. */
@@ -75,7 +79,8 @@ class RegistryUserProductControllerTest {
         RegistryUserService realService = new RegistryUserService(
                 registryRepository, userRepository, productRepository,
                 new ProductForRegistryConverter());
-        return new RegistryUserProductController(realService, userService, userRepository);
+        return new RegistryUserProductController(
+                realService, userService, userRepository, productVoltageService);
     }
 
     private ProductForRegistry request(Integer quantity, BigDecimal active, BigDecimal standby) {
@@ -244,6 +249,7 @@ class RegistryUserProductControllerTest {
         assertEquals(expected, response.getBody());
         assertEquals(200, response.getStatusCode().value());
         verify(userService).findAllProductrs(user);
+        verify(productVoltageService).decorate(List.of(product, product));
     }
 
     @Test
