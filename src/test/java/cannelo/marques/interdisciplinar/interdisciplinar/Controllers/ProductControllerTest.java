@@ -1,6 +1,7 @@
 package cannelo.marques.interdisciplinar.interdisciplinar.Controllers;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.never;
@@ -20,6 +21,7 @@ import org.springframework.data.domain.Pageable;
 
 import cannelo.marques.interdisciplinar.interdisciplinar.Models.Product;
 import cannelo.marques.interdisciplinar.interdisciplinar.Repository.ProductRepository;
+import cannelo.marques.interdisciplinar.interdisciplinar.Services.User.ProductService;
 import cannelo.marques.interdisciplinar.interdisciplinar.Services.User.ProductVoltageService;
 
 @ExtendWith(MockitoExtension.class)
@@ -31,12 +33,15 @@ class ProductControllerTest {
     @Mock
     private ProductVoltageService productVoltageService;
 
+    @Mock
+    private ProductService productService;
+
     private ProductController controller;
     private List<Product> products;
 
     @BeforeEach
     void setUp() {
-        controller = new ProductController(productRepository, productVoltageService);
+        controller = new ProductController(productRepository, productVoltageService, productService);
         products = List.of(
                 new Product(UUID.randomUUID()),
                 new Product(UUID.randomUUID()));
@@ -100,5 +105,36 @@ class ProductControllerTest {
 
         assertEquals(products, response.getBody());
         verify(productRepository).findAll();
+    }
+
+    @Test
+    void shouldListDistinctTrimmedValidCategoriesSortedCaseInsensitive() {
+        Product geladeira = new Product(UUID.randomUUID());
+        geladeira.setCategory("  Geladeira  ");
+        Product televisao = new Product(UUID.randomUUID());
+        televisao.setCategory("Televisão");
+        Product geladeiraDuplicada = new Product(UUID.randomUUID());
+        geladeiraDuplicada.setCategory("Geladeira");
+        Product invalido = new Product(UUID.randomUUID());
+        invalido.setCategory("Ar-condicionado");
+        Product semCategoria = new Product(UUID.randomUUID());
+
+        when(productRepository.findAll())
+                .thenReturn(List.of(geladeira, televisao, geladeiraDuplicada, invalido, semCategoria));
+        when(productService.isValidProduct(any(Product.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0) != invalido);
+
+        var response = controller.listCategories();
+
+        assertEquals(List.of("Geladeira", "Televisão"), response.getBody());
+    }
+
+    @Test
+    void shouldReturnEmptyCategoryListWhenThereAreNoProducts() {
+        when(productRepository.findAll()).thenReturn(List.of());
+
+        var response = controller.listCategories();
+
+        assertTrue(response.getBody().isEmpty());
     }
 }

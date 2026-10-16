@@ -8,11 +8,20 @@ const state = {
 /** Espera mínima (ms) para a animação do loader ser perceptível. */
 const FRONT_MIN_WAIT_MS = 5000;
 
+/**
+ * Chave do cache (localStorage) da lista de categorias de produtos.
+ * Invalidação: chame invalidateCategoriesCache() (equivalente a
+ * localStorage.removeItem(CATEGORIES_CACHE_KEY)) para forçar o reload
+ * das categorias do servidor na próxima abertura.
+ */
+const CATEGORIES_CACHE_KEY = 'amparesProductCategories';
+
 const loginSection = document.getElementById('login-section');
 const registrySection = document.getElementById('registry-section');
 const loginForm = document.getElementById('login-form');
 const registryForm = document.getElementById('registry-form');
 const productSelect = document.getElementById('product-select');
+const categorySelect = document.getElementById('category-select');
 const userProducts = document.getElementById('user-products');
 // Pode ser null: nenhum HTML atual declara #manual-product-id (campo legado).
 const manualProductIdInput = document.getElementById('manual-product-id');
@@ -29,6 +38,7 @@ const frontLoader = document.getElementById('front-loader');
 
 loginForm.addEventListener('submit', handleLogin);
 registryForm.addEventListener('submit', handleRegistrySubmit);
+categorySelect.addEventListener('change', handleCategoryChange);
 calculateButton.addEventListener('click', calculateResults);
 logoutButton.addEventListener('click', clearSession);
 authIdToggle.addEventListener('click', () => setIdRowVisible(idRow.hidden));
@@ -44,6 +54,7 @@ if (state.userId) {
     })
         .then(() => {
             showRegistryScreen();
+            loadCategories();
             return loadProducts();
         })
         .catch(() => {
@@ -89,6 +100,7 @@ async function handleLogin(event) {
         setMessage(loginMessage, '', '');
         showRegistryScreen();
         await loadProducts();
+        loadCategories();
     } catch (error) {
         setMessage(loginMessage, `Falha no login: ${error.message}`, 'error');
     }
@@ -171,6 +183,130 @@ function renderProducts(products = state.products) {
             text: formatProduct(product),
         })),
     ]);
+}
+
+/** Token p/ descartar respostas de filtro de categoria fora de ordem. */
+let categoryFilterSeq = 0;
+
+/**
+ * Filtra o select de produtos pela categoria escolhida (GET /products/category?name=...).
+ * "Todas as categorias" (value '') restaura a lista geral de state.products sem
+ * nova requisição; a lista filtrada NUNCA sobrescreve state.products.
+ */
+async function handleCategoryChange() {
+    const category = categorySelect.value;
+
+    if (!category) {
+        categoryFilterSeq += 1;
+        renderProducts();
+        return;
+    }
+
+    const seq = ++categoryFilterSeq;
+    replaceOptions(productSelect, [{ value: '', text: 'Carregando produtos…' }]);
+
+    try {
+        const data = await request(`/products/category?name=${encodeURIComponent(category)}`, {
+            method: 'GET',
+        });
+
+        if (seq !== categoryFilterSeq) {
+            return; // resposta de uma seleção anterior — descartada.
+        }
+
+        renderProducts(normalizeProducts(data));
+    } catch (error) {
+        if (seq !== categoryFilterSeq) {
+            return;
+        }
+
+        // Nunca mostra a lista geral como se fosse o resultado da categoria.
+        // Restaura estado coerente e avisa o usuário.
+        categorySelect.value = '';
+        renderProducts();
+        setMessage(registryMessage, `Não consegui filtrar por "${category}": ${error.message}`, 'error');
+    }
+}
+
+/**
+ * Carrega as categorias disponíveis (GET /products/categories) para o select
+ * de categoria, usando o cache do localStorage quando válido. Uma falha aqui
+ * NÃO bloqueia o uso da lista geral de produtos.
+ */
+async function loadCategories() {
+    const cached = readCategoriesCache();
+
+    if (cached) {
+        renderCategories(cached);
+        return;
+    }
+
+    try {
+        const categories = normalizeCategories(await request('/products/categories', { method: 'GET' }));
+
+        if (categories.length === 0) {
+            renderCategories([]);
+            return;
+        }
+
+        writeCategoriesCache(categories);
+        renderCategories(categories);
+    } catch (error) {
+        setMessage(registryMessage, `Não consegui carregar as categorias: ${error.message}`, 'error');
+    }
+}
+
+/** Aceita SOMENTE array de strings não vazias; formato inesperado vira lista vazia. */
+function normalizeCategories(data) {
+    if (!Array.isArray(data)) {
+        return [];
+    }
+
+    return data
+        .filter((category) => typeof category === 'string' && category.trim())
+        .map((category) => category.trim());
+}
+
+function renderCategories(categories) {
+    replaceOptions(categorySelect, [
+        { value: '', text: 'Todas as categorias' },
+        ...categories.map((category) => ({ value: category, text: category })),
+    ]);
+}
+
+/** Lê o cache de categorias; ausente/corrompido → null (chave inválida é removida). */
+function readCategoriesCache() {
+    const raw = localStorage.getItem(CATEGORIES_CACHE_KEY);
+
+    if (!raw) {
+        return null;
+    }
+
+    try {
+        const categories = normalizeCategories(JSON.parse(raw));
+        return categories.length > 0 ? categories : null;
+    } catch (error) {
+        invalidateCategoriesCache();
+        return null;
+    }
+}
+
+/** Grava no cache SOMENTE resposta já validada; falha de escrita não quebra o fluxo. */
+function writeCategoriesCache(categories) {
+    try {
+        localStorage.setItem(CATEGORIES_CACHE_KEY, JSON.stringify(categories));
+    } catch (error) {
+        // localStorage indisponível (modo privado/quota): segue sem cache.
+    }
+}
+
+/**
+ * Invalida o cache de categorias.
+ * Para forçar o reload do servidor, chame invalidateCategoriesCache() —
+ * ou manualmente: localStorage.removeItem(CATEGORIES_CACHE_KEY).
+ */
+function invalidateCategoriesCache() {
+    localStorage.removeItem(CATEGORIES_CACHE_KEY);
 }
 
 function renderUserProducts() {

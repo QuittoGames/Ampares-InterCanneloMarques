@@ -23,6 +23,7 @@ public interface ProductRepository extends JpaRepository<Product, UUID>{
         """)
     Optional<List<Product>> searchByName(@Param("name") String name);
 
+    @Deprecated
     @Query("""
             SELECT p
             FROM Product p

@@ -35,4 +35,20 @@ public class ProductService {
                 .orElseThrow(() -> new ProductNotFoundException("Product not found: " + id));
 
     }
+
+    public boolean isValidProduct(Product product) {
+        if (product == null || product.getId() == null) {
+            return false;
+        }
+
+        if (repository.findById(product.getId()).isEmpty()) {
+            return false;
+        }
+
+        if (product.getCategory() == null) {
+            return false; // ou true, dependendo da sua regra de negócio
+        }
+
+        return true;
+    }
 }

@@ -1,0 +1,480 @@
+{
+  "task": "Contexto de codebase para gerar neondb_full_snapshot.sql (idempotente, psql) reconciliando schema real do PostgreSQL Docker 'neondb' x migrations x contrato JPA",
+  "generated_at": "2026-10-16T18:44:05.005381+00:00",
+  "base_report": ".agents/protocol/docs/codebase-explorer.json",
+  "scope": [
+    "config de banco (application.properties)",
+    "docker env (scripts/setup_postgres_docker.sh + docs)",
+    "migrations/*.sql (7 arquivos)",
+    "entidades JPA (3 @Entity)",
+    "repositorios + acesso JDBC nativo",
+    ".gitignore",
+    "DDL extra (energy_collector, backups, docs)"
+  ],
+  "confidence": "HIGH",
+  "config_banco": {
+    "type": "FACT",
+    "jdbc_url": "jdbc:postgresql://localhost:5432/neondb?sslmode=disable",
+    "host": "localhost",
+    "port": 5432,
+    "database": "neondb",
+    "credentials": "username=${DB_USER} / password=${DB_PASSWORD}; importadas via spring.config.import=optional:file:.env[.properties] (valores NAO lidos/expostos — chaves existem no .env da raiz)",
+    "schema": "nenhum spring.jpa.schema nem hibernate.default_schema -> schema public (coletor filtra table_schema='public')",
+    "jpa": {
+      "spring.jpa.hibernate.ddl-auto": "update",
+      "spring.jpa.database-platform": "org.hibernate.dialect.PostgreSQLDialect",
+      "spring.jpa.show-sql": "false",
+      "spring.jpa.properties.hibernate.format_sql": "true",
+      "migration_tool": "NENHUM (sem Flyway/Liquibase no pom.xml; migrations/ aplicadas manualmente por script)"
+    },
+    "server.port": 8081,
+    "arquivo_unico": "So existe src/main/resources/application.properties (sem application-*.yml/properties em main nem test)",
+    "evidence": [
+      "src/main/resources/application.properties:6-13",
+      "pom.xml (spring-boot 4.1.1, spring-boot-starter-data-jpa, org.postgresql; ausencia flyway/liquibase)"
+    ]
+  },
+  "docker_env": {
+    "type": "FACT",
+    "container_name": "neondb-local (default; --container sobrepoe)",
+    "image": "postgres:18 (default; --image sobrepoe)",
+    "porta": "map 5432 do container, host = porta da URL JDBC (5432); conflito de porta de outro container => erro, nada removido",
+    "volume": "neondb_local_data (default) montado em /var/lib/postgresql; em recriacao o volume REAL do container tem prioridade sobre o default",
+    "criacao_do_banco": "docker run com POSTGRES_DB=<dbname da URL JDBC>, POSTGRES_USER e POSTGRES_PASSWORD vindos de env/.env (credenciais EXISTEM, nao expostas), POSTGRES_INITDB_ARGS='--encoding=UTF8 --locale=C', healthcheck pg_isready; psql/pg_restore rodam via docker exec (sem cliente no host)",
+    "ordem_canonica": "SEMPRE script antes do Spring (ddl-auto=update pode criar colunas divergentes). Caminho A (dump backups/*.dump): pg_restore -> create.sql -> 004 -> 005 -> 006 -> add_avg_idle -> rename(condicional) -> seed(so --seed). Caminho B: create.sql -> 004 -> 005 -> 006 -> add_avg_idle -> rename(condicional) -> seed (salvo --no-seed)",
+    "idempotencia_do_script": "container existente e reutilizado; pg_restore so roda se 'users' nao existir ou estiver vazia; nenhuma flag destrutiva sem --recreate/--purge-volume",
+    "evidence": [
+      "scripts/setup_postgres_docker.sh:46-102,365-399,540-648,653-753",
+      "docs/setup_postgres_docker.md:59-186"
+    ]
+  },
+  "tabelas": [
+    {
+      "nome": "users",
+      "fonte": [
+        "migrations/create.sql",
+        "entity JPA User",
+        "seed.sql",
+        "JDBC UserService"
+      ],
+      "colunas": [
+        "id integer NOT NULL DEFAULT nextval('users_id_seq'::regclass) (SERIAL)",
+        "name varchar(50) NULL"
+      ],
+      "pk": "users_pkey PRIMARY KEY (id)",
+      "fks": [],
+      "unique": [],
+      "checks": [],
+      "indices": [],
+      "sequences": [
+        "users_id_seq (gerada pelo SERIAL)"
+      ],
+      "identity": "nao e GENERATED ... AS IDENTITY no DDL; entidade usa GenerationType.IDENTITY (Hibernate trata SERIAL/IDENTITY como geracao nativa)",
+      "observacoes": "seed.sql INSERT id=1 + setval(pg_get_serial_sequence('users','id'), MAX(id)); UserService.create(int id) faz INSERT com id EXPLICITO via JdbcTemplate (ON CONFLICT DO NOTHING) — sequence precisa ficar a frente do MAX(id) apos qualquer carga",
+      "type": "FACT",
+      "confidence": "HIGH"
+    },
+    {
+      "nome": "product",
+      "fonte": [
+        "migrations/create.sql (+ add_avg_idle_energy_for_hour.sql)",
+        "entity JPA Product",
+        "coletor energy_collector/collector/database.py"
+      ],
+      "colunas": [
+        "id uuid NOT NULL PK",
+        "name varchar(150)",
+        "brand varchar(255)",
+        "model varchar(255)",
+        "category varchar(255)",
+        "subcategory varchar(255)",
+        "avg_power_w numeric",
+        "annual_energy_kwh numeric",
+        "avg_idle_energy_for_hour numeric"
+      ],
+      "pk": "product_pkey PRIMARY KEY (id)",
+      "fks": [],
+      "unique": [],
+      "checks": [],
+      "indices": [],
+      "sequences": [],
+      "identity": "UUID gerado na aplicacao (GenerationType.UUID); sem sequence",
+      "observacoes": "Entidade nao tem @Table (Hibernate deriva 'product'); campo declaredVoltages e @Transient (sem coluna). Contrato do coletor = 8 colunas (insert sem avg_idle_energy_for_hour). Bancos legados de dump podem conter ainda product.standby_power_w e product.is_generic (DEPRECADOS, 005 sec.3) — DDL dessas colunas NAO esta versionado",
+      "type": "FACT",
+      "confidence": "HIGH"
+    },
+    {
+      "nome": "registry_user_product",
+      "fonte": [
+        "migrations/create.sql",
+        "entity JPA RegistryUserProduct",
+        "seed.sql"
+      ],
+      "colunas": [
+        "id uuid NOT NULL PK",
+        "user_id integer NOT NULL",
+        "product_id uuid NOT NULL",
+        "quantity integer NOT NULL",
+        "avg_active_hours numeric",
+        "hours_standby numeric"
+      ],
+      "pk": "registry_user_product_pkey PRIMARY KEY (id)",
+      "fks": [
+        "user_id REFERENCES users(id)",
+        "product_id REFERENCES product(id)"
+      ],
+      "unique": [
+        "UNIQUE (user_id, product_id) (constraint de tabela, DDL)",
+        "indice extra uk_registry_user_product_user_product criado por seed.sql (CREATE UNIQUE INDEX IF NOT EXISTS) — redundante com a constraint"
+      ],
+      "checks": [],
+      "indices": [
+        "uk_registry_user_product_user_product (seed.sql:21-22)"
+      ],
+      "sequences": [],
+      "identity": "UUID gerado na aplicacao",
+      "observacoes": "A UNIQUE(user_id,product_id) NAO esta anotada na entidade (@Table sem uniqueConstraints) — existe so por causa do DDL; banco criado apenas pelo Hibernate nao a teria",
+      "type": "FACT",
+      "confidence": "HIGH"
+    },
+    {
+      "nome": "product_source_observation",
+      "fonte": [
+        "migrations/create.sql (completo) = 004 (base) + 005 (proveniencia)",
+        "SEM entidade JPA",
+        "coletor (INSERT de 17 colunas)",
+        "JDBC ProductVoltageService"
+      ],
+      "colunas": [
+        "id uuid PK",
+        "canonical_product_id uuid NOT NULL",
+        "source varchar(50) NOT NULL",
+        "external_id varchar(255) NOT NULL",
+        "brand varchar(255)",
+        "model varchar(255)",
+        "dataset_id varchar(255)",
+        "power_w numeric CHECK (power_w IS NULL OR power_w >= 0)",
+        "annual_energy_kwh numeric CHECK (>= 0)",
+        "standby_power_w numeric CHECK (>= 0)",
+        "is_generic boolean NOT NULL DEFAULT false",
+        "voltage_raw varchar(50)",
+        "voltage_kind varchar(16) NOT NULL DEFAULT 'unknown' CHECK IN ('unknown','monovolt','bivolt','range')",
+        "voltage_min_v numeric CHECK (IS NULL OR > 0)",
+        "voltage_max_v numeric CHECK (IS NULL OR > 0)",
+        "raw_energy_value numeric CHECK (>= 0)",
+        "raw_energy_unit varchar(30)",
+        "observed_at timestamptz NOT NULL DEFAULT now()"
+      ],
+      "pk": "PRIMARY KEY (id)",
+      "fks": [
+        "canonical_product_id REFERENCES product(id) ON DELETE CASCADE"
+      ],
+      "unique": [
+        "UNIQUE (source, external_id)"
+      ],
+      "checks": [
+        "power_w >= 0",
+        "annual_energy_kwh >= 0",
+        "standby_power_w >= 0",
+        "voltage_kind IN (...)",
+        "voltage_min_v > 0",
+        "voltage_max_v > 0",
+        "raw_energy_value >= 0"
+      ],
+      "indices": [
+        "idx_product_source_observation_canonical (canonical_product_id)",
+        "idx_product_source_observation_source (source)"
+      ],
+      "sequences": [],
+      "identity": "UUID gerado pelo coletor/aplicacao",
+      "observacoes": "Acessada fora do JPA: ProductVoltageService (NamedParameterJdbcTemplate: canonical_product_id, voltage_min_v, voltage_max_v) e coletor (INSERT ... ON CONFLICT (source, external_id) DO NOTHING). 004 cria SANS as colunas is_generic/voltage_*/raw_energy_*; 005 as adiciona com ADD COLUMN IF NOT EXISTS",
+      "type": "FACT",
+      "confidence": "HIGH"
+    },
+    {
+      "nome": "energy_label_class",
+      "fonte": [
+        "migrations/006_collector_ingestion_tables.sql",
+        "coletor (INSERT id,label_class)"
+      ],
+      "colunas": [
+        "id uuid PK (FK para product)",
+        "label_class varchar(10) NOT NULL CHECK IN ('A+++','A++','A+','A','B','C','D','E','F','G')",
+        "updated_at timestamptz DEFAULT now()"
+      ],
+      "pk": "PRIMARY KEY (id) — id tambem e FK",
+      "fks": [
+        "id REFERENCES product(id) ON DELETE CASCADE"
+      ],
+      "unique": [],
+      "checks": [
+        "energy_label_class_label_class_check (recriado pelo bloco DO do 006 se faltar 'A+++')"
+      ],
+      "indices": [],
+      "sequences": [],
+      "identity": "id = uuid5 deterministico do produto (gerado pelo coletor)",
+      "observacoes": "SEM entidade JPA; coletor INSERT-ONLY ON CONFLICT (id) DO NOTHING",
+      "type": "FACT",
+      "confidence": "HIGH"
+    },
+    {
+      "nome": "aggregate_reference",
+      "fonte": [
+        "migrations/006_collector_ingestion_tables.sql",
+        "coletor (INSERT de 8 colunas)"
+      ],
+      "colunas": [
+        "id uuid PK",
+        "source varchar(50) NOT NULL",
+        "country varchar(100) NOT NULL",
+        "ref_year smallint NOT NULL CHECK (ref_year >= 1900)",
+        "metric varchar(100) NOT NULL",
+        "appliance varchar(100) NULL",
+        "value numeric NOT NULL",
+        "unit varchar(30) NOT NULL"
+      ],
+      "pk": "PRIMARY KEY (id)",
+      "fks": [],
+      "unique": [
+        "UNIQUE (source, country, ref_year, metric, appliance)"
+      ],
+      "checks": [
+        "ref_year >= 1900"
+      ],
+      "indices": [],
+      "sequences": [],
+      "identity": "UUID gerado pelo coletor",
+      "observacoes": "SEM entidade JPA; sem FK para product. UNIQUE inclui coluna anulavel (appliance) -> com NULLS DISTINCT (default PG) linhas com appliance NULL nao sao deduplicadas por essa constraint",
+      "type": "FACT",
+      "confidence": "HIGH"
+    },
+    {
+      "nome": "energy_raw_measurement",
+      "fonte": [
+        "APENAS citada em scripts/setup_postgres_docker.sh (EXPECTED_TABLES/DUMP_ONLY_TABLES) e docs/specs"
+      ],
+      "colunas": "UNKNOWN — sem DDL no repo",
+      "pk": "UNKNOWN",
+      "fks": [],
+      "unique": [],
+      "checks": [],
+      "indices": [],
+      "sequences": [],
+      "identity": "UNKNOWN",
+      "observacoes": "Vem exclusivamente do dump original (Neon); exige extracao do schema real (pg_dump --schema-only) para o snapshot",
+      "type": "UNKNOWN",
+      "confidence": "HIGH"
+    },
+    {
+      "nome": "energy_specification",
+      "fonte": [
+        "APENAS citada em scripts/setup_postgres_docker.sh e docs/specs"
+      ],
+      "colunas": "UNKNOWN — sem DDL no repo",
+      "pk": "UNKNOWN",
+      "fks": [],
+      "unique": [],
+      "checks": [],
+      "indices": [],
+      "sequences": [],
+      "identity": "UNKNOWN",
+      "observacoes": "Dump-only; DDL real precisa ser extraido do banco",
+      "type": "UNKNOWN",
+      "confidence": "HIGH"
+    },
+    {
+      "nome": "source_metadata",
+      "fonte": [
+        "APENAS citada em scripts/setup_postgres_docker.sh e docs/specs"
+      ],
+      "colunas": "UNKNOWN — sem DDL no repo",
+      "pk": "UNKNOWN",
+      "fks": [],
+      "unique": [],
+      "checks": [],
+      "indices": [],
+      "sequences": [],
+      "identity": "UNKNOWN",
+      "observacoes": "Dump-only; DDL real precisa ser extraido do banco",
+      "type": "UNKNOWN",
+      "confidence": "HIGH"
+    },
+    {
+      "nome": "source_product",
+      "fonte": [
+        "APENAS citada em scripts/setup_postgres_docker.sh e docs/specs"
+      ],
+      "colunas": "UNKNOWN — sem DDL no repo",
+      "pk": "UNKNOWN",
+      "fks": [],
+      "unique": [],
+      "checks": [],
+      "indices": [],
+      "sequences": [],
+      "identity": "UNKNOWN",
+      "observacoes": "Dump-only; DDL real precisa ser extraido do banco",
+      "type": "UNKNOWN",
+      "confidence": "HIGH"
+    }
+  ],
+  "tabelas_sem_ddl_versionado": [
+    "energy_raw_measurement",
+    "energy_specification",
+    "source_metadata",
+    "source_product"
+  ],
+  "ordem_de_dependencia": [
+    "1. users (sem dependencias)",
+    "2. product (sem dependencias)",
+    "3. registry_user_product (FK -> users, product)",
+    "4. product_source_observation (FK -> product, ON DELETE CASCADE)",
+    "5. energy_label_class (FK -> product, ON DELETE CASCADE)",
+    "6. aggregate_reference (sem FK)",
+    "7. energy_raw_measurement / energy_specification / source_metadata / source_product — ordem entre si e FKs UNKNOWN; extrair do schema real do banco antes de fixar ordem"
+  ],
+  "divergencias_riscos": [
+    {
+      "risco": "4 tabelas dump-only sem DDL versionado: migrations recriam apenas 6 das 10 tabelas esperadas pelo script (Caminho B = WARN). O snapshot precisa do schema REAL (pg_dump --schema-only do container), nao so das migrations.",
+      "type": "FACT",
+      "confidence": "HIGH",
+      "evidence": [
+        "scripts/setup_postgres_docker.sh:80-102,667-686",
+        "docs/setup_postgres_docker.md:158-161"
+      ]
+    },
+    {
+      "risco": "users_id_seq: usuarios sao inseridos com id EXPLICITO (UserService.create(int) via JDBC e seed.sql id=1). Se o snapshot carregar dados sem re-sincronizar a sequence (setval apos MAX(id)), proximos inserts IDENTITY do Hibernate colidem. Exige clausula de pos-carga no snapshot.",
+      "type": "FACT",
+      "confidence": "HIGH",
+      "evidence": [
+        "src/main/java/.../Services/User/UserService.java:132-140",
+        "migrations/seed.sql:10-16"
+      ]
+    },
+    {
+      "risco": "Colunas depreciadas product.standby_power_w e product.is_generic podem existir no banco real (legado dump) mas NAO existem em create.sql; 005 apenas as declara deprecadas (nunca DROP). Snapshot fiel ao banco != snapshot reconstruido por migrations.",
+      "type": "INFERENCE",
+      "confidence": "HIGH",
+      "evidence": [
+        "migrations/005_canonical_product_contract.sql:14-16,30-31",
+        "migrations/create.sql:47-57"
+      ]
+    },
+    {
+      "risco": "Ordem das migrations importa: 004 usa CREATE TABLE IF NOT EXISTS sem as colunas voltage/raw; se a tabela ja existir (ex.: criada pelo 004 num banco legado) e create.sql roda depois, IF NOT EXISTS e no-op. 005 adiciona as colunas faltantes, entao o 005 precisa rodar. Snapshot idempotente deve garantir as 19 colunas com ADD COLUMN IF NOT EXISTS ou extrair DDL do banco real.",
+      "type": "INFERENCE",
+      "confidence": "HIGH",
+      "evidence": [
+        "migrations/004_canonical_product_observations.sql:4-17",
+        "migrations/005_canonical_product_contract.sql:37-65",
+        "migrations/create.sql:69-90"
+      ]
+    },
+    {
+      "risco": "rename_userproduct_to_registry_user_product.sql NAO e idempotente (ALTER TABLE userproduct RENAME sem IF EXISTS; falha se a tabela nao existe) — o script de setup so o aplica condicionalmente (to_regclass). Nao incluir incondicionado em um script unico idempotente.",
+      "type": "FACT",
+      "confidence": "HIGH",
+      "evidence": [
+        "migrations/rename_userproduct_to_registry_user_product.sql:16-20",
+        "scripts/setup_postgres_docker.sh:583-592"
+      ]
+    },
+    {
+      "risco": "Indice unico duplicado em registry_user_product: constraint UNIQUE(user_id,product_id) (create.sql:115) + indice uk_registry_user_product_user_product (seed.sql:21). O estado real provavelmente tem ambos; usar CREATE UNIQUE INDEX IF NOT EXISTS / tolerar existencia.",
+      "type": "FACT",
+      "confidence": "HIGH",
+      "evidence": [
+        "migrations/create.sql:108-116",
+        "migrations/seed.sql:19-22"
+      ]
+    },
+    {
+      "risco": "ddl-auto=update: se o Spring subir com o schema incompleto ele adiciona/exige colunas automaticamente (ex.: avg_idle_energy_for_hour) e pode alterar o schema. Snapshot deve ser gerado com a aplicacao PARADA e depois do script de setup, senao o schema capturado pode incluir artefatos do Hibernate.",
+      "type": "INFERENCE",
+      "confidence": "MEDIUM",
+      "evidence": [
+        "src/main/resources/application.properties:12",
+        "docs/setup_postgres_docker.md:16-25",
+        "scripts/setup_postgres_docker.sh:33-36"
+      ]
+    },
+    {
+      "risco": "Nomes de constraints podem divergir entre banco criado pelas migrations (nomes default PG: users_pkey, registry_user_product_user_id_product_id_key) e banco criado pelo Hibernate via ddl-auto=update (FKs nomeadas pelo Hibernate). Snapshot idempotente deve ser tolerante a nomes ou extraido do banco real.",
+      "type": "INFERENCE",
+      "confidence": "MEDIUM",
+      "evidence": [
+        "spring.jpa.hibernate.ddl-auto=update",
+        "migrations/create.sql (sem nomeacao explicita de constraints)"
+      ]
+    },
+    {
+      "risco": ".gitignore ignora .env (linha 3) e backups/ (linha 35), mas NAO ignora '*.sql' na raiz nem 'neondb_full_snapshot.sql' — um snapshot com dados reais ficaria rastreavel/commitavel por padrao (dados de usuarios/produtos). Decisao do DEV sobre gitignore.",
+      "type": "FACT",
+      "confidence": "HIGH",
+      "evidence": [
+        ".gitignore:1-35"
+      ]
+    },
+    {
+      "risco": "Worktree suja: migrations/migrate.sh e migrations/migrate_remote.sh aparecem apagados (nao stageados) vs HEAD; docs/setup_postgres_docker.md:198 ainda os cita como 'legados'. Snapshot nao deve depender deles.",
+      "type": "FACT",
+      "confidence": "HIGH",
+      "evidence": [
+        "git status (D migrations/migrate.sh, D migrations/migrate_remote.sh)",
+        "docs/setup_postgres_docker.md:194-199"
+      ]
+    },
+    {
+      "risco": "seed.sql nao deve rodar sobre o snapshot de dados reais: INSERT ... ON CONFLICT (id) DO UPDATE sobrescreve o name do usuario 1 e vincula registry_user_product a ate 5 produtos.",
+      "type": "FACT",
+      "confidence": "HIGH",
+      "evidence": [
+        "migrations/seed.sql:10-59"
+      ]
+    }
+  ],
+  "relevant_files": [
+    "src/main/resources/application.properties",
+    "scripts/setup_postgres_docker.sh",
+    "docs/setup_postgres_docker.md",
+    "migrations/create.sql",
+    "migrations/004_canonical_product_observations.sql",
+    "migrations/005_canonical_product_contract.sql",
+    "migrations/006_collector_ingestion_tables.sql",
+    "migrations/add_avg_idle_energy_for_hour.sql",
+    "migrations/rename_userproduct_to_registry_user_product.sql",
+    "migrations/seed.sql",
+    "src/main/java/cannelo/marques/interdisciplinar/interdisciplinar/Models/User.java",
+    "src/main/java/cannelo/marques/interdisciplinar/interdisciplinar/Models/Product.java",
+    "src/main/java/cannelo/marques/interdisciplinar/interdisciplinar/Models/RegistryUserProduct.java",
+    "src/main/java/cannelo/marques/interdisciplinar/interdisciplinar/Services/User/ProductVoltageService.java",
+    "src/main/java/cannelo/marques/interdisciplinar/interdisciplinar/Services/User/UserService.java",
+    "src/main/java/cannelo/marques/interdisciplinar/interdisciplinar/Repository/ProductRepository.java",
+    "src/main/java/cannelo/marques/interdisciplinar/interdisciplinar/Repository/UserRepository.java",
+    "src/main/java/cannelo/marques/interdisciplinar/interdisciplinar/Repository/RegistryUserProductRepository.java",
+    "energy_collector/collector/database.py",
+    ".gitignore",
+    "pom.xml"
+  ],
+  "accesso_em_codigo": {
+    "type": "FACT",
+    "statement": "Tabelas efetivamente acessadas pelo codigo: users (JPA UserRepository + INSERT nativo UserService), product (JPA ProductRepository — JPQL apenas, sem SQL nativo), registry_user_product (JPA RegistryUserProductRepository), product_source_observation (JDBC nativo em ProductVoltageService + coletor Python), energy_label_class e aggregate_reference (apenas coletor Python). Nenhuma query Java referencia energy_raw_measurement/energy_specification/source_metadata/source_product.",
+    "confidence": "HIGH"
+  },
+  "documentation": [
+    "docs/setup_postgres_docker.md (ordem canonica, 10 tabelas, dump-only)",
+    ".agents/specs/spec-docker-postgres-frontend-units.md (Task 1, EXPECTED_TABLES)",
+    ".agents/specs/spec-ampares-system-specification.md (contrato de tabelas)",
+    ".agents/protocol/docs/codebase-explorer.json (relatorio global)"
+  ],
+  "uncertainties": [
+    "UNKNOWN: DDL real (colunas, tipos, constraints, indices) das 4 tabelas dump-only — so extraido do banco em execucao.",
+    "UNKNOWN: quais objetos extras o banco real contem alem das migrations (ex.: colunas deprecadas de product, indices/FKs com nomes gerados pelo Hibernate).",
+    "QUESTION TO DEV: se neondb_full_snapshot.sql deve ser ignorado pelo git (hoje nao esta no .gitignore).",
+    "QUESTION TO DEV: forma de idempotencia do snapshot sobre banco ja existente (CREATE TABLE IF NOT EXISTS + ALTER ADD COLUMN, ou DROP/CREATE condicional por tabela)."
+  ],
+  "git": {
+    "branch": "main",
+    "commit": "b42a7c316d438bd79a3f770aa959da133771ac24"
+  }
+}
